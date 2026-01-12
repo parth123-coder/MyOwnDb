@@ -1,0 +1,248 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block title %}{{ table_name }}{% endblock %}
+
+{% block breadcrumb %}
+<span class="breadcrumb-item">Tables</span>
+<span class="breadcrumb-separator">/</span>
+<span class="breadcrumb-item active">{{ table_name }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+    <div>
+        <h1 class="page-title">{{ table_name }}</h1>
+        <p class="page-description">Explore and manage your table data</p>
+    </div>
+    <div style="display: flex; gap: 8px;">
+        <a href="{% url 'dashboard:schema' table_name %}" class="btn btn-secondary">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path
+                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                </path>
+            </svg>
+            Schema
+        </a>
+        <button class="btn btn-danger" onclick="confirmDeleteTable('{{ table_name }}')">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            Delete Table
+        </button>
+    </div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+    <button class="tab active" data-tab="data">Data</button>
+    <button class="tab" data-tab="schema">Schema</button>
+</div>
+
+<!-- Table Container -->
+<div class="table-container">
+    <!-- Toolbar -->
+    <div class="table-toolbar">
+        <div class="table-toolbar-left">
+            <div class="search-input">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" placeholder="Search rows..." id="searchInput"
+                    oninput="Search.handleInput(this.value)">
+            </div>
+            <div style="position: relative;">
+                <button class="filter-btn" onclick="FilterManager.toggle()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                    </svg>
+                    Filter
+                    <span id="filterCount" class="hidden"
+                        style="background: var(--accent-green); color: #000; padding: 2px 6px; border-radius: 9999px; font-size: 11px; margin-left: 4px;">0</span>
+                </button>
+                <!-- Filter Dropdown -->
+                <div class="filter-dropdown" id="filterDropdown">
+                    <div id="filterContainer" style="margin-bottom: 12px;">
+                        <p class="text-muted" style="font-size: 13px;">No filters applied</p>
+                    </div>
+                    <button class="btn btn-sm btn-ghost" onclick="FilterManager.addFilter()">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Add Filter
+                    </button>
+                    <div
+                        style="display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color);">
+                        <button class="btn btn-sm btn-ghost" onclick="FilterManager.clear()">Clear</button>
+                        <button class="btn btn-sm btn-primary" onclick="FilterManager.apply()">Apply</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="table-toolbar-right">
+            <button class="btn btn-secondary" id="refreshTableBtn">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <polyline points="1 20 1 14 7 14"></polyline>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+                Refresh
+            </button>
+            <button class="btn btn-primary" onclick="RowModal.openAdd('{{ table_name }}')">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Insert Row
+            </button>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    <div style="overflow-x: auto;">
+        <table class="data-table">
+            <thead id="tableHead">
+                <tr>
+                    <th colspan="100%">
+                        <div class="skeleton skeleton-text" style="width: 100%; height: 16px;"></div>
+                    </th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <!-- Data loaded dynamically -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="table-pagination" id="tablePagination">
+        <div class="pagination-info">Loading...</div>
+        <div class="pagination-controls"></div>
+    </div>
+</div>
+
+<!-- Add/Edit Row Modal -->
+<div class="modal-overlay" id="rowModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3 class="modal-title" id="rowModalTitle">Add Row</h3>
+            <button class="modal-close" onclick="UI.closeModal('rowModal')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="rowModalForm">
+                <!-- Form fields generated dynamically -->
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="UI.closeModal('rowModal')">Cancel</button>
+            <button class="btn btn-primary" id="rowModalSubmit">Insert Row</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal-overlay delete-modal" id="deleteModal">
+    <div class="modal" style="max-width: 400px;">
+        <div class="modal-body">
+            <div class="delete-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+            </div>
+            <h3 class="delete-title">Delete Row</h3>
+            <p class="delete-message">Are you sure you want to delete this row? This action cannot be undone.</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="UI.closeModal('deleteModal')">Cancel</button>
+            <button class="btn btn-danger" id="deleteModalConfirm">Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Table Modal -->
+<div class="modal-overlay delete-modal" id="deleteTableModal">
+    <div class="modal" style="max-width: 400px;">
+        <div class="modal-body">
+            <div class="delete-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 3h18v18H3zM3 9h18"></path>
+                </svg>
+            </div>
+            <h3 class="delete-title">Delete Table</h3>
+            <p class="delete-message">Are you sure you want to delete the table <strong>{{ table_name }}</strong>? This
+                will permanently delete all data and cannot be undone.</p>
+            <div class="form-group mt-4">
+                <label class="form-label">Type "{{ table_name }}" to confirm:</label>
+                <input type="text" class="form-input" id="deleteTableConfirmInput" placeholder="Table name">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="UI.closeModal('deleteTableModal')">Cancel</button>
+            <button class="btn btn-danger" id="deleteTableConfirm" disabled>Delete Table</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Set current table
+    App.state.currentTable = '{{ table_name }}';
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Load table data
+        TableManager.loadTableData('{{ table_name }}');
+
+        // Refresh button
+        document.getElementById('refreshTableBtn')?.addEventListener('click', () => {
+            TableManager.loadTableData('{{ table_name }}');
+        });
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                if (tab.dataset.tab === 'schema') {
+                    window.location.href = '{% url "dashboard:schema" table_name %}';
+                }
+            });
+        });
+
+        // Delete table confirmation input
+        document.getElementById('deleteTableConfirmInput')?.addEventListener('input', (e) => {
+            const confirmBtn = document.getElementById('deleteTableConfirm');
+            confirmBtn.disabled = e.target.value !== '{{ table_name }}';
+        });
+
+        // Delete table action
+        document.getElementById('deleteTableConfirm')?.addEventListener('click', async () => {
+            try {
+                await API.deleteTable('{{ table_name }}');
+                UI.showToast('Table deleted successfully');
+                window.location.href = '{% url "dashboard:home" %}';
+            } catch (error) {
+                UI.showToast(error.message || 'Failed to delete table', 'error');
+            }
+        });
+    });
+
+    function confirmDeleteTable(tableName) {
+        UI.openModal('deleteTableModal');
+    }
+</script>
+{% endblock %}

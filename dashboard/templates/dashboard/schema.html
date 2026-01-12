@@ -1,0 +1,218 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block title %}{{ table_name }} Schema{% endblock %}
+
+{% block breadcrumb %}
+<span class="breadcrumb-item">Tables</span>
+<span class="breadcrumb-separator">/</span>
+<span class="breadcrumb-item">{{ table_name }}</span>
+<span class="breadcrumb-separator">/</span>
+<span class="breadcrumb-item active">Schema</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+    <div>
+        <h1 class="page-title">{{ table_name }} - Schema</h1>
+        <p class="page-description">View table structure and column definitions</p>
+    </div>
+    <div style="display: flex; gap: 8px;">
+        <a href="{% url 'dashboard:table' table_name %}" class="btn btn-secondary">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Back to Data
+        </a>
+    </div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+    <a href="{% url 'dashboard:table' table_name %}" class="tab">Data</a>
+    <button class="tab active">Schema</button>
+</div>
+
+<!-- Schema Table -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Columns</h3>
+        <button class="btn btn-sm btn-ghost" onclick="copySchema()">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            Copy DDL
+        </button>
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="schema-table" id="schemaTable">
+            <thead>
+                <tr>
+                    <th style="width: 40px;">#</th>
+                    <th>Column Name</th>
+                    <th>Type</th>
+                    <th>Constraints</th>
+                    <th>Default</th>
+                </tr>
+            </thead>
+            <tbody id="schemaBody">
+                <!-- Schema loaded dynamically -->
+                <tr>
+                    <td colspan="5">
+                        <div style="display: flex; gap: 16px; padding: 8px 0;">
+                            <div class="skeleton" style="width: 30px; height: 18px;"></div>
+                            <div class="skeleton" style="width: 150px; height: 18px;"></div>
+                            <div class="skeleton" style="width: 80px; height: 18px;"></div>
+                            <div class="skeleton" style="width: 120px; height: 18px;"></div>
+                            <div class="skeleton" style="width: 80px; height: 18px;"></div>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Table Info -->
+<div class="card mt-6">
+    <div class="card-header">
+        <h3 class="card-title">Table Information</h3>
+    </div>
+    <div class="card-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px;">
+            <div>
+                <div class="text-muted" style="font-size: 12px; margin-bottom: 4px;">Table Name</div>
+                <div class="font-mono" style="color: var(--accent-green);">{{ table_name }}</div>
+            </div>
+            <div>
+                <div class="text-muted" style="font-size: 12px; margin-bottom: 4px;">Row Count</div>
+                <div id="rowCount">-</div>
+            </div>
+            <div>
+                <div class="text-muted" style="font-size: 12px; margin-bottom: 4px;">Column Count</div>
+                <div id="columnCount">-</div>
+            </div>
+            <div>
+                <div class="text-muted" style="font-size: 12px; margin-bottom: 4px;">Primary Key</div>
+                <div id="primaryKey" class="font-mono">-</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SQL DDL -->
+<div class="card mt-6">
+    <div class="card-header">
+        <h3 class="card-title">CREATE TABLE Statement</h3>
+        <button class="btn btn-sm btn-ghost" onclick="copyDDL()">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            Copy
+        </button>
+    </div>
+    <div class="card-body">
+        <pre id="ddlStatement"
+            style="background: var(--bg-tertiary); padding: 16px; border-radius: var(--radius-md); overflow-x: auto; font-family: var(--font-mono); font-size: 13px; line-height: 1.6; color: var(--text-primary);">Loading...</pre>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let schemaData = null;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        try {
+            const schema = await API.getTableSchema('{{ table_name }}');
+            schemaData = schema;
+            renderSchema(schema);
+            renderDDL(schema);
+        } catch (error) {
+            console.error('Failed to load schema:', error);
+            UI.showToast('Failed to load schema', 'error');
+        }
+    });
+
+    function renderSchema(schema) {
+        const tbody = document.getElementById('schemaBody');
+        const columns = schema.columns || [];
+
+        document.getElementById('columnCount').textContent = columns.length;
+        document.getElementById('rowCount').textContent = schema.row_count || 0;
+
+        const primaryKey = columns.filter(c => c.pk).map(c => c.name).join(', ');
+        document.getElementById('primaryKey').textContent = primaryKey || 'None';
+
+        if (columns.length === 0) {
+            tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="text-center text-muted" style="padding: 40px;">
+                    No columns found
+                </td>
+            </tr>
+        `;
+            return;
+        }
+
+        tbody.innerHTML = columns.map((col, index) => {
+            let constraints = [];
+            if (col.pk) constraints.push('<span class="schema-badge primary">PRIMARY KEY</span>');
+            if (col.notnull) constraints.push('<span class="schema-badge not-null">NOT NULL</span>');
+            if (col.unique) constraints.push('<span class="schema-badge unique">UNIQUE</span>');
+
+            return `
+            <tr>
+                <td class="text-muted">${index + 1}</td>
+                <td class="schema-column-name">${UI.escapeHtml(col.name)}</td>
+                <td class="schema-column-type">${UI.escapeHtml(col.type || 'TEXT')}</td>
+                <td>${constraints.join('') || '<span class="text-muted">-</span>'}</td>
+                <td class="font-mono text-muted" style="font-size: 12px;">
+                    ${col.dflt_value !== null ? UI.escapeHtml(String(col.dflt_value)) : '<span class="cell-null">NULL</span>'}
+                </td>
+            </tr>
+        `;
+        }).join('');
+    }
+
+    function renderDDL(schema) {
+        const columns = schema.columns || [];
+
+        let ddl = `CREATE TABLE "${schema.table_name || '{{ table_name }}'}" (\n`;
+
+        ddl += columns.map(col => {
+            let line = `    "${col.name}" ${col.type || 'TEXT'}`;
+            if (col.pk) line += ' PRIMARY KEY';
+            if (col.notnull && !col.pk) line += ' NOT NULL';
+            if (col.unique && !col.pk) line += ' UNIQUE';
+            if (col.dflt_value !== null) line += ` DEFAULT ${col.dflt_value}`;
+            return line;
+        }).join(',\n');
+
+        ddl += '\n);';
+
+        document.getElementById('ddlStatement').textContent = ddl;
+    }
+
+    function copyDDL() {
+        const ddl = document.getElementById('ddlStatement').textContent;
+        navigator.clipboard.writeText(ddl).then(() => {
+            UI.showToast('DDL copied to clipboard');
+        }).catch(() => {
+            UI.showToast('Failed to copy DDL', 'error');
+        });
+    }
+
+    function copySchema() {
+        if (!schemaData) return;
+        navigator.clipboard.writeText(JSON.stringify(schemaData, null, 2)).then(() => {
+            UI.showToast('Schema JSON copied to clipboard');
+        }).catch(() => {
+            UI.showToast('Failed to copy schema', 'error');
+        });
+    }
+</script>
+{% endblock %}

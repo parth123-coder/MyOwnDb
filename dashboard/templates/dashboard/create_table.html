@@ -1,0 +1,101 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Create Table{% endblock %}
+
+{% block breadcrumb %}
+<span class="breadcrumb-item">Database</span>
+<span class="breadcrumb-separator">/</span>
+<span class="breadcrumb-item active">Create Table</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Create New Table</h1>
+    <p class="page-description">Define your table structure with columns and constraints</p>
+</div>
+
+<form id="createTableForm" onsubmit="CreateTable.submit(event)">
+    <!-- Table Name -->
+    <div class="card mb-6">
+        <div class="card-header">
+            <h3 class="card-title">Table Details</h3>
+        </div>
+        <div class="card-body">
+            <div class="form-group" style="max-width: 400px;">
+                <label class="form-label" for="tableName">
+                    Table Name <span class="required">*</span>
+                </label>
+                <input type="text" id="tableName" name="tableName" class="form-input"
+                    placeholder="e.g. users, products, orders" required pattern="[a-zA-Z_][a-zA-Z0-9_]*"
+                    title="Start with letter or underscore, only alphanumeric and underscores allowed">
+                <div class="form-hint">Use lowercase letters, numbers, and underscores. Start with a letter.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Columns -->
+    <div class="card mb-6">
+        <div class="card-header">
+            <h3 class="card-title">Columns</h3>
+            <span class="text-muted" style="font-size: 13px;">Define at least one column</span>
+        </div>
+        <div class="card-body">
+            <div id="columnsContainer">
+                <!-- Column definitions inserted here -->
+                <button type="button" class="add-column-btn" onclick="CreateTable.addColumn()">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Add Column
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tips -->
+    <div class="card mb-6" style="border-color: var(--accent-green-subtle);">
+        <div class="card-body" style="display: flex; gap: 16px;">
+            <div style="color: var(--accent-green);">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+            </div>
+            <div>
+                <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">Quick Tips</h4>
+                <ul style="font-size: 13px; color: var(--text-secondary); padding-left: 16px; margin: 0;">
+                    <li style="margin-bottom: 4px;">Use <code
+                            style="background: var(--bg-tertiary); padding: 2px 6px; border-radius: 4px;">INTEGER PRIMARY KEY</code>
+                        for auto-incrementing IDs</li>
+                    <li style="margin-bottom: 4px;">TEXT columns are ideal for strings of any length</li>
+                    <li style="margin-bottom: 4px;">Use REAL for decimal numbers and BOOLEAN for true/false values</li>
+                    <li>DATETIME stores ISO-8601 formatted date-time strings</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Submit -->
+    <div style="display: flex; gap: 12px;">
+        <a href="{% url 'dashboard:home' %}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            Create Table
+        </button>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Initialize the form
+    document.addEventListener('DOMContentLoaded', () => {
+        CreateTable.init();
+    });
+</script>
+{% endblock %}

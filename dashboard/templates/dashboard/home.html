@@ -1,0 +1,416 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block breadcrumb %}
+<span class="breadcrumb-item active">Dashboard</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Dashboard</h1>
+    <p class="page-description">Overview of your database statistics and recent activity</p>
+</div>
+
+<!-- Stats Grid -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18"></path>
+            </svg>
+        </div>
+        <div class="stat-value" id="totalTables">-</div>
+        <div class="stat-label">Total Tables</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="8" y1="6" x2="21" y2="6"></line>
+                <line x1="8" y1="12" x2="21" y2="12"></line>
+                <line x1="8" y1="18" x2="21" y2="18"></line>
+                <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+        </div>
+        <div class="stat-value" id="totalRows">-</div>
+        <div class="stat-label">Total Rows</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon orange">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+            </svg>
+        </div>
+        <div class="stat-value" id="recentActivity">-</div>
+        <div class="stat-label">Actions Today</div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="card mb-6">
+    <div class="card-header">
+        <h3 class="card-title">Quick Actions</h3>
+    </div>
+    <div class="card-body" style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <a href="{% url 'dashboard:create_table' %}" class="btn btn-primary">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="16"></line>
+                <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+            New Table
+        </a>
+        <button class="btn btn-secondary" onclick="openImportModal()">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            Import Data
+        </button>
+        <button class="btn btn-secondary" onclick="openExportModal()">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Export Data
+        </button>
+    </div>
+</div>
+
+<!-- Tables Overview & Recent Activity -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+    <!-- Tables List -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Tables</h3>
+            <a href="{% url 'dashboard:create_table' %}" class="btn btn-sm btn-ghost">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Add
+            </a>
+        </div>
+        <div class="card-body" id="tablesOverview" style="max-height: 300px; overflow-y: auto;">
+            <div class="skeleton skeleton-text"></div>
+            <div class="skeleton skeleton-text medium"></div>
+            <div class="skeleton skeleton-text short"></div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Recent Activity</h3>
+            <a href="{% url 'dashboard:activity' %}" class="btn btn-sm btn-ghost">View All</a>
+        </div>
+        <div class="card-body" id="recentActivityList" style="max-height: 300px; overflow-y: auto;">
+            <div class="skeleton skeleton-text"></div>
+            <div class="skeleton skeleton-text medium"></div>
+            <div class="skeleton skeleton-text short"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        // Load dashboard stats
+        try {
+            const stats = await API.getStats();
+            document.getElementById('totalTables').textContent = stats.total_tables || 0;
+            document.getElementById('totalRows').textContent = formatNumber(stats.total_rows || 0);
+            document.getElementById('totalSize').textContent = formatBytes(stats.database_size || 0);
+            document.getElementById('recentActivity').textContent = stats.actions_today || 0;
+        } catch (error) {
+            console.error('Failed to load stats:', error);
+        }
+
+        // Load tables overview
+        try {
+            const tables = await API.getTables();
+            const container = document.getElementById('tablesOverview');
+
+            if (tables.length === 0) {
+                container.innerHTML = `
+                <div class="empty-state" style="padding: 20px 0;">
+                    <p class="text-muted">No tables yet</p>
+                    <a href="{% url 'dashboard:create_table' %}" class="btn btn-primary btn-sm mt-4">Create Table</a>
+                </div>
+            `;
+            } else {
+                container.innerHTML = tables.map(table => `
+                <a href="/table/${table.name}/" class="table-item" style="margin: 0 -20px; padding: 12px 20px;">
+                    <svg class="table-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;">
+                        <path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18"></path>
+                    </svg>
+                    <span style="flex: 1;">${UI.escapeHtml(table.name)}</span>
+                    <span class="text-muted" style="font-size: 12px;">${table.row_count || 0} rows</span>
+                </a>
+            `).join('');
+            }
+        } catch (error) {
+            console.error('Failed to load tables:', error);
+        }
+
+        // Load recent activity
+        try {
+            const activity = await API.getActivityLogs({ limit: 5 });
+            const container = document.getElementById('recentActivityList');
+
+            if (activity.logs.length === 0) {
+                container.innerHTML = `
+                <div class="empty-state" style="padding: 20px 0;">
+                    <p class="text-muted">No activity yet</p>
+                </div>
+            `;
+            } else {
+                container.innerHTML = activity.logs.map(log => `
+                <div class="activity-item" style="padding: 12px 0; border-bottom: 1px solid var(--border-color);">
+                    <div class="activity-icon ${log.action}" style="width: 32px; height: 32px;">
+                        ${getActivityIcon(log.action)}
+                    </div>
+                    <div class="activity-content">
+                        <div class="activity-title">${formatActivityTitle(log)}</div>
+                        <div class="activity-time">${formatTimeAgo(log)}</div>
+                    </div>
+                </div>
+            `).join('');
+            }
+        } catch (error) {
+            console.error('Failed to load activity:', error);
+        }
+    });
+
+    function formatNumber(num) {
+        if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+        if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+        return num.toString();
+    }
+
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    function getActivityIcon(action) {
+        const icons = {
+            'INSERT_ROW': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>',
+            'UPDATE_ROW': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',
+            'DELETE_ROW': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>',
+            'CREATE_TABLE': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3zM3 9h18"></path></svg>',
+            'DELETE_TABLE': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3zM3 9h18"></path><line x1="9" y1="14" x2="15" y2="14" stroke="red"></line></svg>',
+        };
+        return icons[action] || '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle></svg>';
+    }
+
+    function formatActivityTitle(log) {
+        const actions = {
+            'INSERT_ROW': 'Row inserted into',
+            'UPDATE_ROW': 'Row updated in',
+            'DELETE_ROW': 'Row deleted from',
+            'CREATE_TABLE': 'Table created:',
+            'DELETE_TABLE': 'Table deleted:',
+        };
+        return `${actions[log.action] || 'Action on'} <strong>${UI.escapeHtml(log.table_name)}</strong>`;
+    }
+
+    function formatTimeAgo(log) {
+        // Use backend-provided time_ago if available
+        if (log.time_ago) return log.time_ago;
+        
+        // Fallback to manual calculation
+        const now = new Date();
+        const time = new Date(log.created_at);
+        const diff = Math.floor((now - time) / 1000);
+
+        if (diff < 60) return 'Just now';
+        if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+        if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+        return Math.floor(diff / 86400) + 'd ago';
+    }
+
+    function openImportModal() {
+        // Build table select options
+        const tables = App.state.tables || [];
+        if (tables.length === 0) {
+            UI.showToast('No tables available. Create a table first.', 'error');
+            return;
+        }
+        
+        const modalHtml = `
+            <div class="modal-overlay active" id="importModal" onclick="if(event.target===this) closeImportModal()">
+                <div class="modal" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">Import Data</h3>
+                        <button class="modal-close" onclick="closeImportModal()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label class="form-label">Select Table</label>
+                            <select class="form-select" id="importTableSelect">
+                                ${tables.map(t => `<option value="${t.name}">${t.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">File Format</label>
+                            <select class="form-select" id="importFormatSelect">
+                                <option value="json">JSON</option>
+                                <option value="csv">CSV</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Select File</label>
+                            <input type="file" class="form-input" id="importFile" accept=".json,.csv" style="padding: 8px;">
+                        </div>
+                        <div style="background: var(--bg-tertiary); padding: 12px; border-radius: 6px; font-size: 12px; color: var(--text-muted);">
+                            <strong>JSON Format:</strong> Array of objects<br>
+                            <code>[{"col1": "val1"}, {"col1": "val2"}]</code><br><br>
+                            <strong>CSV Format:</strong> First row = headers
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="closeImportModal()">Cancel</button>
+                        <button class="btn btn-primary" onclick="executeImport()">Import Data</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+
+    function closeImportModal() {
+        document.getElementById('importModal')?.remove();
+    }
+
+    async function executeImport() {
+        const tableName = document.getElementById('importTableSelect').value;
+        const format = document.getElementById('importFormatSelect').value;
+        const fileInput = document.getElementById('importFile');
+        
+        if (!fileInput.files[0]) {
+            UI.showToast('Please select a file', 'error');
+            return;
+        }
+        
+        try {
+            const fileContent = await fileInput.files[0].text();
+            let data;
+            
+            if (format === 'json') {
+                const parsed = JSON.parse(fileContent);
+                // Handle both array and { rows: [...] } format
+                data = Array.isArray(parsed) ? parsed : (parsed.rows || []);
+            } else {
+                // Parse CSV
+                data = parseCSV(fileContent);
+            }
+            
+            const response = await API.request(`/tables/${tableName}/import/`, {
+                method: 'POST',
+                body: JSON.stringify({ format, data }),
+            });
+            
+            closeImportModal();
+            UI.showToast(`Imported ${response.imported} rows successfully!`);
+            
+            // Refresh tables list
+            TableManager.loadTablesList();
+        } catch (error) {
+            UI.showToast(error.message || 'Import failed', 'error');
+        }
+    }
+
+    function parseCSV(text) {
+        const lines = text.trim().split('\n');
+        if (lines.length < 2) return [];
+        
+        const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+        const data = [];
+        
+        for (let i = 1; i < lines.length; i++) {
+            const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+            const row = {};
+            headers.forEach((h, idx) => {
+                row[h] = values[idx] || '';
+            });
+            data.push(row);
+        }
+        return data;
+    }
+
+    function openExportModal() {
+        const tables = App.state.tables || [];
+        if (tables.length === 0) {
+            UI.showToast('No tables available to export.', 'error');
+            return;
+        }
+        
+        const modalHtml = `
+            <div class="modal-overlay active" id="exportModal" onclick="if(event.target===this) closeExportModal()">
+                <div class="modal" style="max-width: 400px;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">Export Data</h3>
+                        <button class="modal-close" onclick="closeExportModal()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label class="form-label">Select Table</label>
+                            <select class="form-select" id="exportTableSelect">
+                                ${tables.map(t => `<option value="${t.name}">${t.name} (${t.row_count || 0} rows)</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Format</label>
+                            <select class="form-select" id="exportFormatSelect">
+                                <option value="json">JSON</option>
+                                <option value="csv">CSV</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="closeExportModal()">Cancel</button>
+                        <button class="btn btn-primary" onclick="executeExport()">Download</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+
+    function closeExportModal() {
+        document.getElementById('exportModal')?.remove();
+    }
+
+    function executeExport() {
+        const tableName = document.getElementById('exportTableSelect').value;
+        const format = document.getElementById('exportFormatSelect').value;
+        
+        // Trigger download by opening the export URL
+        const url = `/api/tables/${tableName}/export/?format=${format}`;
+        window.location.href = url;
+        
+        closeExportModal();
+        UI.showToast(`Exporting ${tableName} as ${format.toUpperCase()}...`);
+    }
+</script>
+{% endblock %}

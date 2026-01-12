@@ -1,0 +1,174 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register | MyOwnDatabase</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Override Django form widget styles to match our design */
+        .login-form input[type="text"],
+        .login-form input[type="password"] {
+            width: 100%;
+            padding: 12px 14px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+        .login-form input[type="text"]:focus,
+        .login-form input[type="password"]:focus {
+            outline: none;
+            border-color: var(--accent-green);
+            box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.1);
+        }
+        .login-form input::placeholder {
+            color: var(--text-muted);
+        }
+        .field-error {
+            color: var(--accent-red, #ef4444);
+            font-size: 12px;
+            margin-top: 6px;
+            display: block;
+        }
+        .field-error ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .field-helptext {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 6px;
+            display: block;
+        }
+        .field-helptext ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .field-helptext li {
+            margin-bottom: 2px;
+        }
+        .non-field-errors {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+        .non-field-errors ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .non-field-errors li {
+            color: var(--accent-red, #ef4444);
+            font-size: 13px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                    <path d="M3 5V19A9 3 0 0 0 21 19V5"></path>
+                    <path d="M3 12A9 3 0 0 0 21 12"></path>
+                </svg>
+            </div>
+            <h1 class="login-title">Create an account</h1>
+            <p class="login-subtitle">Sign up to start managing your databases</p>
+
+            {% if messages %}
+            {% for message in messages %}
+            <div class="toast {{ message.tags }}"
+                style="position: relative; transform: none; animation: none; margin-bottom: 16px;">
+                <span class="toast-message">{{ message }}</span>
+            </div>
+            {% endfor %}
+            {% endif %}
+
+            {% if form.non_field_errors %}
+            <div class="non-field-errors">
+                {{ form.non_field_errors }}
+            </div>
+            {% endif %}
+
+            <form class="login-form" method="post" action="{% url 'register' %}">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label class="form-label" for="{{ form.username.id_for_label }}">Username</label>
+                    {{ form.username }}
+                    {% if form.username.help_text %}
+                    <span class="field-helptext">{{ form.username.help_text }}</span>
+                    {% endif %}
+                    {% if form.username.errors %}
+                    <span class="field-error">{{ form.username.errors }}</span>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="{{ form.password1.id_for_label }}">Password</label>
+                    {{ form.password1 }}
+                    {% if form.password1.help_text %}
+                    <span class="field-helptext">{{ form.password1.help_text }}</span>
+                    {% endif %}
+                    {% if form.password1.errors %}
+                    <span class="field-error">{{ form.password1.errors }}</span>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="{{ form.password2.id_for_label }}">Confirm Password</label>
+                    {{ form.password2 }}
+                    {% if form.password2.help_text %}
+                    <span class="field-helptext">{{ form.password2.help_text }}</span>
+                    {% endif %}
+                    {% if form.password2.errors %}
+                    <span class="field-error">{{ form.password2.errors }}</span>
+                    {% endif %}
+                </div>
+                <button type="submit" class="btn btn-primary login-btn">
+                    Create Account
+                </button>
+            </form>
+
+            <div class="login-footer">
+                Already have an account? <a href="{% url 'login' %}">Sign in</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add floating animation to login card
+        const card = document.querySelector('.login-card');
+        card.style.animation = 'fadeInUp 0.5s ease';
+
+        // Add keyframes
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeInUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+
+</html>

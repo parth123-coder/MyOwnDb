@@ -1,0 +1,332 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block title %}API Keys{% endblock %}
+
+{% block breadcrumb %}
+<span class="breadcrumb-item active">API Keys</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+    <div>
+        <h1 class="page-title">API Keys</h1>
+        <p class="page-description">Manage API keys for external access to your data</p>
+    </div>
+    <button class="btn btn-primary" onclick="openCreateModal()">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        Generate New Key
+    </button>
+</div>
+
+<!-- Info Card -->
+<div class="card mb-6" style="border-left: 4px solid var(--accent-green);">
+    <div class="card-body">
+        <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            How to use the API
+        </h4>
+        
+        <!-- Base URL -->
+        <div style="background: var(--bg-tertiary); padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+            <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">📌 Base API URL (use this in your apps)</div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <code id="baseApiUrl" style="flex: 1; font-size: 14px; font-weight: 600; color: var(--accent-green);">{{ request.scheme }}://{{ request.get_host }}/api/v1</code>
+                <button class="btn btn-sm btn-secondary" onclick="copyBaseUrl()" style="padding: 4px 10px;">Copy</button>
+            </div>
+        </div>
+        
+        <!-- Example -->
+        <p style="margin: 0 0 8px; font-size: 13px; color: var(--text-muted);">
+            Send requests with the <code>X-API-Key</code> header:
+        </p>
+        <pre style="background: var(--bg-tertiary); padding: 12px; border-radius: 6px; font-size: 12px; overflow-x: auto; margin: 0;">curl -H "X-API-Key: sk_your_key_here" {{ request.scheme }}://{{ request.get_host }}/api/v1/tables/</pre>
+    </div>
+</div>
+
+<!-- API Keys List -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Your API Keys</h3>
+    </div>
+    <div class="card-body" id="keysContainer" style="padding: 0;">
+        <!-- Keys loaded dynamically -->
+        <div style="padding: 20px;">
+            <div class="skeleton skeleton-text"></div>
+            <div class="skeleton skeleton-text medium" style="margin-top: 8px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Key Modal -->
+<div class="modal-overlay" id="createKeyModal">
+    <div class="modal" style="max-width: 450px;">
+        <div class="modal-header">
+            <h3 class="modal-title">Generate New API Key</h3>
+            <button class="modal-close" onclick="UI.closeModal('createKeyModal')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Key Name <span class="required">*</span></label>
+                <input type="text" class="form-input" id="keyName" placeholder="e.g., My Python App, Production Server">
+                <div class="form-hint">A descriptive name to identify this key</div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="UI.closeModal('createKeyModal')">Cancel</button>
+            <button class="btn btn-primary" id="createKeyBtn" onclick="createKey()">Generate Key</button>
+        </div>
+    </div>
+</div>
+
+<!-- New Key Display Modal -->
+<div class="modal-overlay" id="newKeyModal">
+    <div class="modal" style="max-width: 550px;">
+        <div class="modal-header">
+            <h3 class="modal-title">🔑 Your New API Key</h3>
+        </div>
+        <div class="modal-body">
+            <div style="background: var(--accent-yellow); color: #000; padding: 12px; border-radius: 6px; margin-bottom: 16px; font-size: 13px;">
+                <strong>⚠️ Important:</strong> Copy this key now. You won't be able to see it again!
+            </div>
+            <div class="form-group">
+                <label class="form-label">API Key</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" class="form-input" id="newKeyValue" readonly style="font-family: var(--font-mono); font-size: 12px;">
+                    <button class="btn btn-secondary" onclick="copyKey()">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                        Copy
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" onclick="UI.closeModal('newKeyModal'); loadKeys();">I've Saved My Key</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal-overlay" id="deleteKeyModal">
+    <div class="modal" style="max-width: 400px;">
+        <div class="modal-header">
+            <h3 class="modal-title">Delete API Key</h3>
+            <button class="modal-close" onclick="UI.closeModal('deleteKeyModal')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p>Are you sure you want to delete this API key? Any applications using this key will immediately lose access.</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="UI.closeModal('deleteKeyModal')">Cancel</button>
+            <button class="btn btn-danger" id="deleteKeyConfirm">Delete Key</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentDeleteKeyId = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadKeys();
+});
+
+async function loadKeys() {
+    const container = document.getElementById('keysContainer');
+    
+    try {
+        const response = await API.request('/keys/');
+        const keys = response.keys || [];
+        
+        if (keys.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state" style="padding: 60px;">
+                    <div class="empty-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path>
+                        </svg>
+                    </div>
+                    <h3 class="empty-title">No API Keys</h3>
+                    <p class="empty-description">Generate your first API key to start accessing your data programmatically.</p>
+                    <button class="btn btn-primary mt-4" onclick="openCreateModal()">Generate New Key</button>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = `
+            <table class="data-table" style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Key</th>
+                        <th>Created</th>
+                        <th>Last Used</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${keys.map(key => `
+                        <tr>
+                            <td><strong>${UI.escapeHtml(key.name)}</strong></td>
+                            <td><code style="font-size: 12px;">${key.key_prefix}...</code></td>
+                            <td>${formatDate(key.created_at)}</td>
+                            <td>${key.last_used_at ? formatDate(key.last_used_at) : '<span class="text-muted">Never</span>'}</td>
+                            <td>
+                                <span class="schema-badge ${key.is_active ? 'INSERT_ROW' : 'DELETE_ROW'}">
+                                    ${key.is_active ? 'Active' : 'Inactive'}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="cell-actions">
+                                    <button class="action-btn" title="${key.is_active ? 'Deactivate' : 'Activate'}" onclick="toggleKey(${key.id}, ${!key.is_active})">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            ${key.is_active 
+                                                ? '<path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line>'
+                                                : '<path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line>'
+                                            }
+                                        </svg>
+                                    </button>
+                                    <button class="action-btn danger" title="Delete" onclick="openDeleteModal(${key.id})">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (error) {
+        console.error('Failed to load keys:', error);
+        container.innerHTML = `
+            <div class="empty-state" style="padding: 40px;">
+                <p class="text-muted">Failed to load API keys</p>
+                <button class="btn btn-primary btn-sm mt-4" onclick="loadKeys()">Retry</button>
+            </div>
+        `;
+    }
+}
+
+function openCreateModal() {
+    document.getElementById('keyName').value = '';
+    UI.openModal('createKeyModal');
+    document.getElementById('keyName').focus();
+}
+
+async function createKey() {
+    const name = document.getElementById('keyName').value.trim();
+    
+    if (!name) {
+        UI.showToast('Please enter a key name', 'error');
+        return;
+    }
+    
+    const btn = document.getElementById('createKeyBtn');
+    btn.disabled = true;
+    btn.textContent = 'Generating...';
+    
+    try {
+        const response = await API.request('/keys/', {
+            method: 'POST',
+            body: JSON.stringify({ name }),
+        });
+        
+        UI.closeModal('createKeyModal');
+        
+        // Show the new key
+        document.getElementById('newKeyValue').value = response.key;
+        UI.openModal('newKeyModal');
+        
+        UI.showToast('API key generated successfully');
+    } catch (error) {
+        UI.showToast(error.message || 'Failed to generate key', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Generate Key';
+    }
+}
+
+function copyKey() {
+    const input = document.getElementById('newKeyValue');
+    input.select();
+    document.execCommand('copy');
+    UI.showToast('API key copied to clipboard!');
+}
+
+async function toggleKey(keyId, activate) {
+    try {
+        await API.request(`/keys/${keyId}/`, {
+            method: 'PATCH',
+            body: JSON.stringify({ is_active: activate }),
+        });
+        
+        UI.showToast(`API key ${activate ? 'activated' : 'deactivated'}`);
+        loadKeys();
+    } catch (error) {
+        UI.showToast(error.message || 'Failed to update key', 'error');
+    }
+}
+
+function openDeleteModal(keyId) {
+    currentDeleteKeyId = keyId;
+    document.getElementById('deleteKeyConfirm').onclick = () => deleteKey(keyId);
+    UI.openModal('deleteKeyModal');
+}
+
+async function deleteKey(keyId) {
+    try {
+        await API.request(`/keys/${keyId}/`, {
+            method: 'DELETE',
+        });
+        
+        UI.closeModal('deleteKeyModal');
+        UI.showToast('API key deleted');
+        loadKeys();
+    } catch (error) {
+        UI.showToast(error.message || 'Failed to delete key', 'error');
+    }
+}
+
+function formatDate(isoString) {
+    const date = new Date(isoString);
+    return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+    });
+}
+
+function copyBaseUrl() {
+    const url = document.getElementById('baseApiUrl').textContent;
+    navigator.clipboard.writeText(url).then(() => {
+        UI.showToast('Base URL copied!');
+    });
+}
+</script>
+{% endblock %}

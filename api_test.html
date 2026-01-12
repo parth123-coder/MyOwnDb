@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test - MyOwnDatabase</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #e5e5e5;
+            padding: 40px;
+            min-height: 100vh;
+        }
+        h1 {
+            color: #3ECF8E;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            color: #888;
+            margin-bottom: 32px;
+        }
+        .config {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        .config label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: #888;
+        }
+        .config input {
+            width: 100%;
+            padding: 10px 12px;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 6px;
+            color: #fff;
+            font-family: monospace;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+        .buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        button {
+            padding: 10px 20px;
+            background: #3ECF8E;
+            color: #000;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        button:hover {
+            background: #2ba370;
+        }
+        button.secondary {
+            background: #333;
+            color: #fff;
+        }
+        button.secondary:hover {
+            background: #444;
+        }
+        button.danger {
+            background: #ef4444;
+            color: #fff;
+        }
+        .output {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .output h3 {
+            margin-bottom: 12px;
+            font-size: 14px;
+            color: #888;
+        }
+        pre {
+            background: #0a0a0a;
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.5;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .success { color: #3ECF8E; }
+        .error { color: #ef4444; }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 12px;
+        }
+        .status.success { background: rgba(62,207,142,0.2); color: #3ECF8E; }
+        .status.error { background: rgba(239,68,68,0.2); color: #ef4444; }
+    </style>
+</head>
+<body>
+    <h1>🔑 MyOwnDatabase API Tester</h1>
+    <p class="subtitle">Test your API key and explore the public API endpoints</p>
+
+    <!-- Configuration -->
+    <div class="config">
+        <label>API Base URL</label>
+        <input type="text" id="baseUrl" value="http://127.0.0.1:8000/api/v1">
+        
+        <label>API Key</label>
+        <input type="text" id="apiKey" value="sk_652c8a4ceba8fa01440feec89095e2f72169770cfc2a7268883a2c487cf626f1">
+        
+        <div style="display: flex; gap: 12px; align-items: flex-end;">
+            <div style="flex: 1;">
+                <label>Select Table</label>
+                <select id="tableSelect" style="width: 100%; padding: 10px 12px; background: #0a0a0a; border: 1px solid #333; border-radius: 6px; color: #fff; font-size: 13px;">
+                    <option value="">-- Click "Load Tables" first --</option>
+                </select>
+            </div>
+            <button onclick="loadTables()" style="height: 42px;">🔄 Load Tables</button>
+        </div>
+    </div>
+
+    <!-- Test Buttons -->
+    <div class="buttons">
+        <button onclick="testListTables()">📋 List All Tables</button>
+        <button onclick="testGetTableSchema()" class="secondary">📐 Get Schema</button>
+        <button onclick="testGetRows()" class="secondary">📄 Get Rows</button>
+        <button onclick="testInsertRow()" class="secondary">➕ Insert Row</button>
+        <button onclick="testUpdateRow()" class="secondary">✏️ Update Row</button>
+        <button onclick="testDeleteRow()" class="danger">🗑️ Delete Row</button>
+    </div>
+
+    <!-- Output -->
+    <div class="output">
+        <h3>Response <span id="statusBadge"></span></h3>
+        <pre id="output">Click "Load Tables" to start, then select a table and test the API...</pre>
+    </div>
+
+    <script>
+        // =============================================
+        // API HELPER
+        // =============================================
+        async function apiRequest(endpoint, options = {}) {
+            const baseUrl = document.getElementById('baseUrl').value.replace(/\/$/, '');
+            const apiKey = document.getElementById('apiKey').value;
+            
+            const url = `${baseUrl}${endpoint}`;
+            
+            const defaultOptions = {
+                headers: {
+                    'X-API-Key': apiKey,
+                    'Content-Type': 'application/json',
+                },
+            };
+            
+            const config = { ...defaultOptions, ...options };
+            if (options.headers) {
+                config.headers = { ...defaultOptions.headers, ...options.headers };
+            }
+            
+            console.log(`🚀 ${config.method || 'GET'} ${url}`);
+            
+            const startTime = Date.now();
+            const response = await fetch(url, config);
+            const duration = Date.now() - startTime;
+            
+            const data = await response.json();
+            
+            return {
+                status: response.status,
+                statusText: response.statusText,
+                duration: duration,
+                data: data,
+                ok: response.ok,
+            };
+        }
+
+        function showResult(result) {
+            const output = document.getElementById('output');
+            const badge = document.getElementById('statusBadge');
+            
+            const formatted = {
+                status: `${result.status} ${result.statusText}`,
+                duration: `${result.duration}ms`,
+                response: result.data,
+            };
+            
+            output.textContent = JSON.stringify(formatted, null, 2);
+            
+            if (result.ok) {
+                badge.textContent = `✅ ${result.status}`;
+                badge.className = 'status success';
+            } else {
+                badge.textContent = `❌ ${result.status}`;
+                badge.className = 'status error';
+            }
+        }
+
+        function showError(error) {
+            const output = document.getElementById('output');
+            const badge = document.getElementById('statusBadge');
+            
+            output.textContent = `Error: ${error.message}\n\nMake sure:\n1. Django server is running\n2. API Key is correct\n3. Open this file directly (file://) not via Live Server`;
+            badge.textContent = '❌ Error';
+            badge.className = 'status error';
+        }
+
+        function getSelectedTable() {
+            const tableName = document.getElementById('tableSelect').value;
+            if (!tableName) {
+                alert('Please select a table first! Click "Load Tables" to get your tables.');
+                return null;
+            }
+            return tableName;
+        }
+
+        // =============================================
+        // TEST FUNCTIONS
+        // =============================================
+
+        async function loadTables() {
+            try {
+                const result = await apiRequest('/tables/');
+                showResult(result);
+                
+                if (result.ok && result.data.tables) {
+                    const select = document.getElementById('tableSelect');
+                    select.innerHTML = result.data.tables.map(t => 
+                        `<option value="${t.name}">${t.name} (${t.row_count || 0} rows)</option>`
+                    ).join('');
+                    
+                    if (result.data.tables.length === 0) {
+                        select.innerHTML = '<option value="">No tables found</option>';
+                    }
+                }
+            } catch (error) {
+                showError(error);
+            }
+        }
+
+        async function testListTables() {
+            try {
+                const result = await apiRequest('/tables/');
+                showResult(result);
+            } catch (error) {
+                showError(error);
+            }
+        }
+
+        async function testGetTableSchema() {
+            const tableName = getSelectedTable();
+            if (!tableName) return;
+            
+            try {
+                const result = await apiRequest(`/tables/${tableName}/`);
+                showResult(result);
+            } catch (error) {
+                showError(error);
+            }
+        }
+
+        async function testGetRows() {
+            const tableName = getSelectedTable();
+            if (!tableName) return;
+            
+            try {
+                const result = await apiRequest(`/tables/${tableName}/rows/?limit=10`);
+                showResult(result);
+            } catch (error) {
+                showError(error);
+            }
+        }
+
+        async function testInsertRow() {
+            const tableName = getSelectedTable();
+            if (!tableName) return;
+            
+            const dataStr = prompt('Enter row data as JSON:', '{"column1": "value1"}');
+            if (!dataStr) return;
+            
+            try {
+                const data = JSON.parse(dataStr);
+                const result = await apiRequest(`/tables/${tableName}/rows/`, {
+                    method: 'POST',
+                    body: JSON.stringify(data),
+                });
+                showResult(result);
+            } catch (error) {
+                showError(error);
+            }
+        }
+
+        async function testUpdateRow() {
+            const tableName = getSelectedTable();
+            if (!tableName) return;
+            
+            const rowId = prompt('Enter row ID:', '1');
+            if (!rowId) return;
+            
+            const dataStr = prompt('Enter update data as JSON:', '{"column1": "new_value"}');
+            if (!dataStr) return;
+            
+            try {
+                const data = JSON.parse(dataStr);
+                const result = await apiRequest(`/tables/${tableName}/rows/${rowId}/`, {
+                    method: 'PUT',
+                    body: JSON.stringify(data),
+                });
+                showResult(result);
+            } catch (error) {
+                showError(error);
+            }
+        }
+
+        async function testDeleteRow() {
+            const tableName = getSelectedTable();
+            if (!tableName) return;
+            
+            const rowId = prompt('Enter row ID to DELETE:', '1');
+            if (!rowId) return;
+            
+            if (!confirm(`Are you sure you want to DELETE row ${rowId} from ${tableName}?`)) {
+                return;
+            }
+            
+            try {
+                const result = await apiRequest(`/tables/${tableName}/rows/${rowId}/`, {
+                    method: 'DELETE',
+                });
+                showResult(result);
+            } catch (error) {
+                showError(error);
+            }
+        }
+
+        // Log startup
+        console.log('🔑 MyOwnDatabase API Tester loaded');
+        console.log('Base URL:', document.getElementById('baseUrl').value);
+    </script>
+</body>
+</html>
