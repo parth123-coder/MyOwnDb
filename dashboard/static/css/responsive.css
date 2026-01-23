@@ -1,0 +1,115 @@
+/* =============================================
+   MOBILE RESPONSIVENESS
+   ============================================= */
+
+@media (max-width: 768px) {
+
+    /* Layout Adjustments */
+    .app-container {
+        flex-direction: column;
+    }
+
+    .main-content {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    /* Topbar */
+    .topbar {
+        padding: 0 16px;
+    }
+
+    .hamburger-btn {
+        display: flex !important;
+    }
+
+    /* Sidebar Mobile State */
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform var(--transition-normal);
+        width: 280px;
+        /* Slightly wider for better touch targets */
+        box-shadow: none;
+    }
+
+    .sidebar.active {
+        transform: translateX(0);
+        box-shadow: var(--shadow-xl);
+    }
+
+    /* Mobile Overlay */
+    .mobile-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        opacity: 0;
+        visibility: hidden;
+        transition: all var(--transition-normal);
+        z-index: 90;
+        /* Below sidebar (100) but above everything else */
+        backdrop-filter: blur(2px);
+    }
+
+    .mobile-overlay.active {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    /* Adjust page padding */
+    .page-content {
+        padding: 16px;
+    }
+
+    .page-title {
+        font-size: 20px;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Table Adjustments */
+    .table-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .table-toolbar-left,
+    .table-toolbar-right {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+    }
+
+    .table-toolbar-right {
+        flex-direction: row;
+        /* Keep buttons side-by-side if possible */
+        justify-content: stretch;
+    }
+
+    .search-input {
+        min-width: 100%;
+        width: 100%;
+    }
+
+    .btn {
+        flex: 1;
+        /* Stretch buttons in toolbar */
+    }
+
+    /* Table Scrolling */
+    .table-container {
+        border-radius: var(--radius-md);
+        margin: 0 -8px;
+        /* Negative margin to span full width */
+        width: calc(100% + 16px);
+        border-left: none;
+        border-right: none;
+        border-radius: 0;
+    }
+}
