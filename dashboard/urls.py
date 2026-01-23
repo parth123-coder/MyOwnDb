@@ -7,6 +7,9 @@ urlpatterns = [
     # Dashboard Home
     path('', views.home, name='home'),
     
+    # Docs Page
+    path('docs.html', views.docs, name='docs'),
+    
     # Table Pages (will need table API from tables app)
     path('table/<str:table_name>/', views.table_view, name='table'),
     path('table/<str:table_name>/schema/', views.schema_view, name='schema'),
@@ -20,3 +23,4 @@ urlpatterns = [
     
     # Note: API endpoints will be in the tables app
 ]
+

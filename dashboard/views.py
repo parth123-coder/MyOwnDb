@@ -1,5 +1,8 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
+from django.http import FileResponse
+from django.conf import settings
+import os
 
 # =============================================================================
 # PAGE VIEWS (Frontend-only: renders HTML templates)
@@ -53,3 +56,10 @@ def api_keys(request):
     return render(request, 'dashboard/api_keys.html', {
         'active_page': 'api_keys',
     })
+
+
+def docs(request):
+    """SDK Documentation page (public, no login required)"""
+    docs_path = os.path.join(settings.BASE_DIR, 'docs.html')
+    return FileResponse(open(docs_path, 'rb'), content_type='text/html')
+
