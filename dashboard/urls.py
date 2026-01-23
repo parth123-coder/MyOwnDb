@@ -21,6 +21,9 @@ urlpatterns = [
     # API Keys
     path('api-keys/', views.api_keys, name='api_keys'),
     
+    # Cron Job
+    path('cron/', views.cron_handler, name='cron'),
+    
     # Note: API endpoints will be in the tables app
 ]
 

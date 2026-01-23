@@ -63,3 +63,9 @@ def docs(request):
     docs_path = os.path.join(settings.BASE_DIR, 'docs.html')
     return FileResponse(open(docs_path, 'rb'), content_type='text/html')
 
+
+def cron_handler(request):
+    """Cron job endpoint for keeping the service alive or running tasks"""
+    from django.http import JsonResponse
+    return JsonResponse({'status': 'ok', 'message': 'Cron job executed successfully'})
+
