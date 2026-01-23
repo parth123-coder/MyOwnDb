@@ -292,8 +292,13 @@ class TableRowsView(APIView):
                 total = cursor.fetchone()[0]
                 
                 # Get rows with pagination
-                # Explicitly select rowid to ensure we have a stable ID
-                rows_sql = f'SELECT *, rowid FROM "{user_table.real_name}" {where_clause} {order_clause} LIMIT {page_size} OFFSET {offset}'
+                if connection.vendor == 'sqlite':
+                    # SQLite: Explicitly select rowid
+                    rows_sql = f'SELECT *, rowid FROM "{user_table.real_name}" {where_clause} {order_clause} LIMIT {page_size} OFFSET {offset}'
+                else:
+                    # PostgreSQL: No rowid column, just select all
+                    rows_sql = f'SELECT * FROM "{user_table.real_name}" {where_clause} {order_clause} LIMIT {page_size} OFFSET {offset}'
+                
                 cursor.execute(rows_sql, params)
                 columns = [desc[0] for desc in cursor.description] if cursor.description else []
                 rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
@@ -380,6 +385,8 @@ class TableRowDetailView(APIView):
             
             # Determine if we should use rowid or pk_col
             use_rowid = str(row_id).isdigit()
+            if connection.vendor != 'sqlite':
+                use_rowid = False
             
             # Prepare set clause
             # We must use %s for values to prevent SQL injection
@@ -460,6 +467,8 @@ class TableRowDetailView(APIView):
             # Determine if we should use rowid or pk_col
             # If row_id is a number, try rowid first
             use_rowid = str(row_id).isdigit()
+            if connection.vendor != 'sqlite':
+                use_rowid = False
             
             if use_rowid:
                 sql = f'DELETE FROM "{user_table.real_name}" WHERE rowid = %s'
