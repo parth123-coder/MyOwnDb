@@ -220,9 +220,22 @@ class PublicTableRowsView(APIView):
             
             sql = f'INSERT INTO "{user_table.real_name}" ({columns_str}) VALUES ({placeholders})'
             
-            with connection.cursor() as cursor:
-                cursor.execute(sql, values)
-                row_id = cursor.lastrowid
+            if connection.vendor == 'postgresql':
+                # Find PK column
+                pk_col = 'id'
+                for col in user_table.schema:
+                    if col.get('pk'):
+                        pk_col = col.get('name')
+                        break
+                        
+                sql += f' RETURNING "{pk_col}"'
+                with connection.cursor() as cursor:
+                    cursor.execute(sql, values)
+                    row_id = cursor.fetchone()[0]
+            else:
+                with connection.cursor() as cursor:
+                    cursor.execute(sql, values)
+                    row_id = cursor.lastrowid
             
             # Log activity
             log_api_activity(

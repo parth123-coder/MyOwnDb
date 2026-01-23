@@ -109,11 +109,28 @@ class TableListCreateView(APIView):
             is_unique = col.get('unique') in [True, 'true', 'True', 1, '1']
             
             # Build column definition
-            if is_pk and col_type == 'INTEGER':
-                # SQLite requires exact syntax for auto-increment
-                col_def = f'"{col_name}" INTEGER PRIMARY KEY AUTOINCREMENT'
-            elif is_pk:
-                col_def = f'"{col_name}" {col_type} PRIMARY KEY'
+            # Map types for PostgreSQL
+            if connection.vendor != 'sqlite':
+                if col_type == 'BLOB':
+                    col_type = 'BYTEA'
+                elif col_type == 'DATETIME':
+                    col_type = 'TIMESTAMP'
+
+            # Build column definition
+            if is_pk:
+                if connection.vendor == 'sqlite':
+                    if col_type == 'INTEGER':
+                        # SQLite requires exact syntax for auto-increment
+                        col_def = f'"{col_name}" INTEGER PRIMARY KEY AUTOINCREMENT'
+                    else:
+                        col_def = f'"{col_name}" {col_type} PRIMARY KEY'
+                else:
+                    # PostgreSQL
+                    if col_type == 'INTEGER':
+                        # SERIAL implies INTEGER + AUTOINCREMENT + PRIMARY KEY (implied) + NOT NULL
+                        col_def = f'"{col_name}" SERIAL PRIMARY KEY'
+                    else:
+                        col_def = f'"{col_name}" {col_type} PRIMARY KEY'
             else:
                 col_def = f'"{col_name}" {col_type}'
                 if is_notnull:
@@ -337,9 +354,22 @@ class TableRowsView(APIView):
             print(f"INSERT SQL: {sql}")  # Debug
             print(f"VALUES: {values}")  # Debug
             
-            with connection.cursor() as cursor:
-                cursor.execute(sql, values)
-                new_row_id = cursor.lastrowid
+            if connection.vendor == 'postgresql':
+                # Find PK column
+                pk_col = 'id'
+                for col in user_table.schema:
+                    if col.get('pk'):
+                        pk_col = col.get('name')
+                        break
+                        
+                sql += f' RETURNING "{pk_col}"'
+                with connection.cursor() as cursor:
+                    cursor.execute(sql, values)
+                    new_row_id = cursor.fetchone()[0]
+            else:
+                with connection.cursor() as cursor:
+                    cursor.execute(sql, values)
+                    new_row_id = cursor.lastrowid
             
             # Log activity
             log_activity(
