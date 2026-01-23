@@ -35,6 +35,8 @@
     .sidebar.active {
         transform: translateX(0);
         box-shadow: var(--shadow-xl);
+        z-index: 200;
+        /* Ensure it's above the overlay (90) and everything else */
     }
 
     /* Mobile Overlay */
@@ -48,8 +50,8 @@
         opacity: 0;
         visibility: hidden;
         transition: all var(--transition-normal);
-        z-index: 90;
-        /* Below sidebar (100) but above everything else */
+        z-index: 150;
+        /* Above normal content, below sidebar (200) */
         backdrop-filter: blur(2px);
     }
 
