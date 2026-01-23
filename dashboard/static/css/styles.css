@@ -96,55 +96,27 @@ select {
     font-size: inherit;
 }
 
-/* Topbar */
-.topbar {
-    height: var(--topbar-height);
-    background: var(--bg-primary);
-    /* Blend with main bg or secondary? Usually secondary or transparent */
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 24px;
-    position: sticky;
-    top: 0;
-    z-index: 90;
-    background: rgba(28, 28, 28, 0.8);
-    /* Semi-transparent */
-    backdrop-filter: blur(8px);
-}
-
-.topbar-left {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-}
-
 .hamburger-btn {
     display: none;
-    /* Hidden on desktop */
+    background: none;
+    border: none;
+    cursor: pointer;
     color: var(--text-secondary);
     padding: 4px;
-    margin-right: 8px;
+    margin-right: 12px;
 }
 
 .hamburger-btn:hover {
     color: var(--text-primary);
-    background: var(--bg-hover);
-    border-radius: var(--radius-sm);
 }
 
-.topbar-right {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-left: auto;
-}
+/* =============================================
+   LAYOUT
+   ============================================= */
 
-.user-menu_top {
+.app-container {
     display: flex;
-    align-items: center;
-    gap: 12px;
+    min-height: 100vh;
 }
 
 /* Sidebar */
