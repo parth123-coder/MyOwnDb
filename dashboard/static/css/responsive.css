@@ -33,9 +33,9 @@
     }
 
     .sidebar.active {
-        transform: translateX(0);
-        box-shadow: var(--shadow-xl);
-        z-index: 200;
+        transform: translateX(0) !important;
+        box-shadow: var(--shadow-xl) !important;
+        z-index: 200 !important;
         /* Ensure it's above the overlay (90) and everything else */
     }
 
