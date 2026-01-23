@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo App - MyOwnDatabase</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+            color: #e5e5e5;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container { max-width: 700px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 40px; }
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #3ECF8E 0%, #00d4aa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        .header p { color: #888; }
+        .sdk-badge {
+            display: inline-block;
+            background: rgba(62, 207, 142, 0.2);
+            border: 1px solid #3ECF8E;
+            color: #3ECF8E;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+        .config-panel {
+            background: rgba(26, 26, 46, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(62, 207, 142, 0.2);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 32px;
+        }
+        .config-row { display: flex; gap: 16px; align-items: flex-end; margin-bottom: 16px; }
+        .config-field { flex: 1; }
+        .config-field label {
+            display: block; font-size: 12px; font-weight: 500;
+            color: #888; margin-bottom: 8px; text-transform: uppercase;
+        }
+        .config-field input, .config-field select {
+            width: 100%; padding: 14px 16px;
+            background: rgba(10, 10, 10, 0.8);
+            border: 1px solid #333; border-radius: 10px;
+            color: #fff; font-size: 13px;
+        }
+        .config-field input:focus, .config-field select:focus {
+            outline: none; border-color: #3ECF8E;
+        }
+        .btn {
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #3ECF8E 0%, #00d4aa 100%);
+            color: #000; border: none; border-radius: 10px;
+            cursor: pointer; font-weight: 600; font-size: 14px;
+            transition: all 0.3s ease; white-space: nowrap;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(62, 207, 142, 0.3); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-secondary { background: #333; color: #fff; }
+        .btn-secondary:hover { background: #444; box-shadow: none; }
+        .status { display: flex; align-items: center; gap: 8px; padding: 12px 16px;
+            background: rgba(10, 10, 10, 0.6); border-radius: 8px; margin-top: 16px; font-size: 13px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #666; }
+        .status-dot.connected { background: #3ECF8E; box-shadow: 0 0 8px #3ECF8E; }
+        .status-dot.error { background: #ef4444; }
+        .add-section {
+            background: rgba(26, 26, 46, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px; padding: 24px; margin-bottom: 24px;
+        }
+        .add-form { display: flex; flex-direction: column; gap: 12px; }
+        .form-row { display: flex; gap: 12px; }
+        .todo-input {
+            flex: 1; padding: 16px 20px;
+            background: rgba(10, 10, 10, 0.8);
+            border: 1px solid #333; border-radius: 12px;
+            color: #fff; font-size: 15px;
+        }
+        .todo-input:focus { outline: none; border-color: #3ECF8E; }
+        .todo-input::placeholder { color: #666; }
+        .todo-list { display: flex; flex-direction: column; gap: 12px; }
+        .todo-item {
+            background: rgba(26, 26, 46, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px; padding: 20px 24px;
+            display: flex; align-items: center; gap: 16px;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .todo-item:hover { border-color: rgba(62, 207, 142, 0.3); transform: translateX(4px); }
+        .todo-content { flex: 1; }
+        .todo-name { font-size: 16px; font-weight: 600; color: #e5e5e5; margin-bottom: 4px; }
+        .todo-task { font-size: 14px; color: #888; }
+        .todo-meta { font-size: 12px; color: #666; margin-top: 6px; }
+        .action-btn {
+            width: 36px; height: 36px; border: none; border-radius: 8px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 16px; transition: all 0.3s ease;
+        }
+        .edit-btn { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+        .delete-btn { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .action-btn:hover { transform: scale(1.1); }
+        .empty-state { text-align: center; padding: 60px 20px; color: #666; }
+        .empty-state-icon { font-size: 64px; margin-bottom: 16px; opacity: 0.5; }
+        .loading { display: flex; justify-content: center; padding: 40px; }
+        .spinner { width: 40px; height: 40px; border: 3px solid #333;
+            border-top-color: #3ECF8E; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .stats-bar {
+            display: flex; justify-content: space-between;
+            padding: 16px 24px; background: rgba(26, 26, 46, 0.4);
+            border-radius: 12px; margin-bottom: 20px; font-size: 14px;
+        }
+        .stats-bar span { color: #888; }
+        .stats-bar strong { color: #3ECF8E; }
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s ease;
+        }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal {
+            background: #1a1a2e; border: 1px solid rgba(62, 207, 142, 0.3);
+            border-radius: 20px; padding: 32px; width: 90%; max-width: 450px;
+        }
+        .modal h2 { font-size: 20px; margin-bottom: 24px; color: #3ECF8E; }
+        .modal-field { margin-bottom: 16px; }
+        .modal-field label { display: block; font-size: 12px; color: #888; margin-bottom: 6px; }
+        .modal-input {
+            width: 100%; padding: 14px 16px;
+            background: rgba(10, 10, 10, 0.8);
+            border: 1px solid #333; border-radius: 10px;
+            color: #fff; font-size: 15px;
+        }
+        .modal-input:focus { outline: none; border-color: #3ECF8E; }
+        .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
+        .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 1001; }
+        .toast {
+            padding: 16px 24px; border-radius: 12px; font-size: 14px;
+            animation: toastIn 0.3s ease; display: flex; align-items: center; gap: 12px; margin-top: 12px;
+        }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        .toast.success { background: rgba(62, 207, 142, 0.2); border: 1px solid #3ECF8E; color: #3ECF8E; }
+        .toast.error { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #ef4444; }
+        .code-example {
+            background: #0d0d0d; border: 1px solid #333; border-radius: 8px;
+            padding: 16px; margin-top: 16px; font-family: monospace; font-size: 12px;
+            color: #3ECF8E; overflow-x: auto;
+        }
+        @media (max-width: 600px) {
+            .config-row, .form-row { flex-direction: column; }
+            .header h1 { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✨ Todo App</h1>
+            <p>Connected to MyOwnDatabase</p>
+            <span class="sdk-badge">⚡ Powered by MyOwnDB SDK</span>
+        </div>
+
+        <div class="config-panel">
+            <div class="config-row">
+                <div class="config-field">
+                    <label>API Key</label>
+                    <input type="text" id="apiKey" placeholder="Paste your API key here...">
+                </div>
+                <button class="btn btn-secondary" onclick="loadTables()">🔄 Load</button>
+            </div>
+            <div class="config-row">
+                <div class="config-field">
+                    <label>Select Table</label>
+                    <select id="tableSelect">
+                        <option value="">-- Load tables first --</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="connect()">🔗 Connect</button>
+            </div>
+            <div class="status">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Not connected</span>
+            </div>
+            <div class="code-example" id="codeExample" style="display: none;">
+                <strong>// SDK Usage Example:</strong><br>
+                const db = new MyOwnDB('your-api-key');<br>
+                const { data } = await db.from('<span id="tableNameCode">table</span>').select();
+            </div>
+        </div>
+
+        <div class="add-section">
+            <form class="add-form" onsubmit="addTodo(event)">
+                <div class="form-row">
+                    <input type="text" class="todo-input" id="todoNameInput" placeholder="Todo Name..." disabled>
+                </div>
+                <div class="form-row">
+                    <input type="text" class="todo-input" id="todoTaskInput" placeholder="Todo Task..." disabled>
+                    <button type="submit" class="btn" id="addBtn" disabled>➕ Add</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="stats-bar" id="statsBar" style="display: none;">
+            <span>Total: <strong id="totalCount">0</strong></span>
+            <span>Table: <strong id="tableName">-</strong></span>
+        </div>
+
+        <div class="todo-list" id="todoList">
+            <div class="empty-state">
+                <div class="empty-state-icon">🔌</div>
+                <h3>Connect to Database</h3>
+                <p>Enter API key → Load tables → Select → Connect</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="editModal">
+        <div class="modal">
+            <h2>✏️ Edit Todo</h2>
+            <div class="modal-field">
+                <label id="editNameLabel">Name</label>
+                <input type="text" class="modal-input" id="editNameInput">
+            </div>
+            <div class="modal-field">
+                <label id="editTaskLabel">Task</label>
+                <input type="text" class="modal-input" id="editTaskInput">
+            </div>
+            <input type="hidden" id="editId">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                <button class="btn" onclick="saveEdit()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- ✨ Include the MyOwnDB SDK -->
+    <script src="static/js/myowndb.js"></script>
+
+    <script>
+        // =============================================
+        // 🚀 USING THE SDK - SO SIMPLE!
+        // =============================================
+        let db = null;  // MyOwnDB instance
+        let selectedTable = '';
+        let columns = [];
+        let todos = [];
+
+        // Initialize SDK when API key is entered
+        function initSDK() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            if (apiKey) {
+                db = new MyOwnDB(apiKey);
+            }
+        }
+
+        // =============================================
+        // LOAD TABLES - Using SDK
+        // =============================================
+        async function loadTables() {
+            initSDK();
+            if (!db) {
+                showToast('Please enter your API key first', 'error');
+                return;
+            }
+
+            // 🎯 SDK: Simple one-liner!
+            const { data, error } = await db.tables();
+            
+            if (error) {
+                showToast('Failed: ' + error, 'error');
+                return;
+            }
+
+            const select = document.getElementById('tableSelect');
+            if (data && data.length > 0) {
+                select.innerHTML = data.map(t => 
+                    `<option value="${t.name}">${t.name} (${t.row_count || 0} rows)</option>`
+                ).join('');
+                showToast(`Found ${data.length} table(s)!`, 'success');
+            } else {
+                select.innerHTML = '<option value="">No tables found</option>';
+            }
+        }
+
+        // =============================================
+        // CONNECT - Using SDK
+        // =============================================
+        async function connect() {
+            initSDK();
+            selectedTable = document.getElementById('tableSelect').value;
+            
+            if (!db || !selectedTable) {
+                showToast('Please load tables and select one', 'error');
+                return;
+            }
+
+            updateStatus('connecting');
+
+            // 🎯 SDK: Get schema
+            const { data, error } = await db.from(selectedTable).schema();
+            
+            if (error) {
+                updateStatus('error', error);
+                showToast('Failed: ' + error, 'error');
+                return;
+            }
+
+            columns = data.columns || [];
+            updateStatus('connected');
+            enableInputs();
+            showCodeExample();
+            await loadTodos();
+            showToast('Connected!', 'success');
+        }
+
+        // =============================================
+        // LOAD TODOS - Using SDK
+        // =============================================
+        async function loadTodos() {
+            document.getElementById('todoList').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+            // 🎯 SDK: Super simple select!
+            const { data, error } = await db.from(selectedTable).select();
+            
+            if (error) {
+                document.getElementById('todoList').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">❌</div>
+                        <h3>Error</h3><p>${error}</p>
+                    </div>`;
+                return;
+            }
+
+            todos = data || [];
+            renderTodos();
+        }
+
+        // =============================================
+        // ADD TODO - Using SDK
+        // =============================================
+        async function addTodo(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('todoNameInput').value.trim();
+            const task = document.getElementById('todoTaskInput').value.trim();
+            
+            if (!name) {
+                showToast('Please enter a name', 'error');
+                return;
+            }
+
+            const { nameCol, taskCol } = getColumns();
+            const rowData = {};
+            rowData[nameCol] = name;
+            if (task) rowData[taskCol] = task;
+
+            // 🎯 SDK: Simple insert!
+            const { error } = await db.from(selectedTable).insert(rowData);
+            
+            if (error) {
+                showToast('Failed: ' + error, 'error');
+                return;
+            }
+
+            document.getElementById('todoNameInput').value = '';
+            document.getElementById('todoTaskInput').value = '';
+            showToast('Added!', 'success');
+            await loadTodos();
+        }
+
+        // =============================================
+        // DELETE TODO - Using SDK
+        // =============================================
+        async function deleteTodo(id) {
+            if (!confirm('Delete this todo?')) return;
+
+            // 🎯 SDK: Simple delete!
+            const { error } = await db.from(selectedTable).delete(id);
+            
+            if (error) {
+                showToast('Failed: ' + error, 'error');
+                return;
+            }
+
+            showToast('Deleted!', 'success');
+            await loadTodos();
+        }
+
+        // =============================================
+        // EDIT TODO - Using SDK
+        // =============================================
+        function openEditModal(id, name, task) {
+            document.getElementById('editId').value = id;
+            document.getElementById('editNameInput').value = name || '';
+            document.getElementById('editTaskInput').value = task || '';
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.remove('active');
+        }
+
+        async function saveEdit() {
+            const id = document.getElementById('editId').value;
+            const name = document.getElementById('editNameInput').value.trim();
+            const task = document.getElementById('editTaskInput').value.trim();
+
+            if (!name) {
+                showToast('Please enter a name', 'error');
+                return;
+            }
+
+            const { nameCol, taskCol } = getColumns();
+            const rowData = {};
+            rowData[nameCol] = name;
+            rowData[taskCol] = task;
+
+            // 🎯 SDK: Simple update!
+            const { error } = await db.from(selectedTable).update(id, rowData);
+            
+            if (error) {
+                showToast('Failed: ' + error, 'error');
+                return;
+            }
+
+            closeEditModal();
+            showToast('Updated!', 'success');
+            await loadTodos();
+        }
+
+        // =============================================
+        // UI HELPERS
+        // =============================================
+        function getColumns() {
+            const cols = columns.filter(c => c.name.toLowerCase() !== 'id');
+            return { nameCol: cols[0]?.name || 'name', taskCol: cols[1]?.name || 'task' };
+        }
+
+        function renderTodos() {
+            const list = document.getElementById('todoList');
+            const stats = document.getElementById('statsBar');
+            
+            if (todos.length === 0) {
+                stats.style.display = 'none';
+                list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📝</div><h3>No todos yet</h3></div>`;
+                return;
+            }
+
+            stats.style.display = 'flex';
+            document.getElementById('totalCount').textContent = todos.length;
+            document.getElementById('tableName').textContent = selectedTable;
+
+            const { nameCol, taskCol } = getColumns();
+            list.innerHTML = todos.map(todo => {
+                const name = todo[nameCol] || Object.values(todo)[1] || '';
+                const task = todo[taskCol] || Object.values(todo)[2] || '';
+                return `
+                    <div class="todo-item">
+                        <div class="todo-content">
+                            <div class="todo-name">${escapeHtml(String(name))}</div>
+                            ${task ? `<div class="todo-task">${escapeHtml(String(task))}</div>` : ''}
+                            <div class="todo-meta">ID: ${todo.id}</div>
+                        </div>
+                        <div style="display:flex;gap:8px;">
+                            <button class="action-btn edit-btn" onclick="openEditModal(${todo.id}, '${escapeHtml(String(name))}', '${escapeHtml(String(task))}')">✏️</button>
+                            <button class="action-btn delete-btn" onclick="deleteTodo(${todo.id})">🗑️</button>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        function updateStatus(status, msg = '') {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            dot.className = 'status-dot';
+            if (status === 'connected') { dot.classList.add('connected'); text.textContent = `Connected to "${selectedTable}" ✓`; }
+            else if (status === 'error') { dot.classList.add('error'); text.textContent = msg; }
+            else { text.textContent = 'Connecting...'; }
+        }
+
+        function enableInputs() {
+            document.getElementById('todoNameInput').disabled = false;
+            document.getElementById('todoTaskInput').disabled = false;
+            document.getElementById('addBtn').disabled = false;
+            const { nameCol, taskCol } = getColumns();
+            document.getElementById('todoNameInput').placeholder = nameCol + '...';
+            document.getElementById('todoTaskInput').placeholder = taskCol + '...';
+            document.getElementById('editNameLabel').textContent = nameCol;
+            document.getElementById('editTaskLabel').textContent = taskCol;
+        }
+
+        function showCodeExample() {
+            document.getElementById('codeExample').style.display = 'block';
+            document.getElementById('tableNameCode').textContent = selectedTable;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML.replace(/'/g, "\\'");
+        }
+
+        function showToast(msg, type) {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<span>${type === 'success' ? '✅' : '❌'}</span><span>${msg}</span>`;
+            document.getElementById('toastContainer').appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
+        }
+
+        document.getElementById('editModal').onclick = e => { if (e.target.id === 'editModal') closeEditModal(); };
+        console.log('✨ Todo App with MyOwnDB SDK loaded!');
+    </script>
+</body>
+</html>
