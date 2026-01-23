@@ -79,7 +79,7 @@ class APIKey(models.Model):
         """
         raw_key = cls.generate_key()
         key_hash = cls.hash_key(raw_key)
-        key_prefix = raw_key[:10]  # "sk_" + first 7 chars
+        key_prefix = raw_key[:8]  # "sk_" + first 5 chars - Fits in max_length=8
         
         api_key = cls.objects.create(
             user=user,
