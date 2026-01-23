@@ -96,13 +96,55 @@ select {
     font-size: inherit;
 }
 
-/* =============================================
-   LAYOUT
-   ============================================= */
-
-.app-container {
+/* Topbar */
+.topbar {
+    height: var(--topbar-height);
+    background: var(--bg-primary);
+    /* Blend with main bg or secondary? Usually secondary or transparent */
+    border-bottom: 1px solid var(--border-color);
     display: flex;
-    min-height: 100vh;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    position: sticky;
+    top: 0;
+    z-index: 90;
+    background: rgba(28, 28, 28, 0.8);
+    /* Semi-transparent */
+    backdrop-filter: blur(8px);
+}
+
+.topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.hamburger-btn {
+    display: none;
+    /* Hidden on desktop */
+    color: var(--text-secondary);
+    padding: 4px;
+    margin-right: 8px;
+}
+
+.hamburger-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+    border-radius: var(--radius-sm);
+}
+
+.topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-left: auto;
+}
+
+.user-menu_top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
 /* Sidebar */
