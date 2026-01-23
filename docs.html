@@ -385,10 +385,55 @@
             margin-top: 60px;
         }
 
-        /* Responsive */
+
+        /* Mobile Menu */
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .mobile-menu {
+            position: fixed;
+            top: 70px;
+            left: 0;
+            right: 0;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            transform: translateY(-150%);
+            transition: transform 0.3s ease;
+            z-index: 90;
+        }
+
+        .mobile-menu.active {
+            transform: translateY(0);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .mobile-menu a {
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 500;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .mobile-menu a:hover {
+            background: rgba(255,255,255,0.05);
+            color: var(--accent);
+        }
+
         @media (max-width: 768px) {
             .nav { padding: 16px 20px; }
             .nav-links { display: none; }
+            .mobile-menu-btn { display: block; }
             .container { padding: 80px 20px 40px; }
             .hero h1 { font-size: 2.5rem; }
             .hero p { font-size: 1rem; }
@@ -408,19 +453,46 @@
         }
 
         .section { animation: fadeIn 0.6s ease forwards; }
+
+        /* JS Toggle Script */
     </style>
+    <script>
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobileMenu');
+            menu.classList.toggle('active');
+        }
+    </script>
 </head>
 <body>
     <!-- Navigation -->
     <nav class="nav">
         <div class="nav-logo">📦 MyOwnDB</div>
+        
+        <!-- Desktop Links -->
         <div class="nav-links">
             <a href="#getting-started">Getting Started</a>
             <a href="#sdk-methods">SDK Methods</a>
             <a href="#api-reference">API Reference</a>
             <a href="#examples">Examples</a>
         </div>
+
+        <!-- Mobile Hamburger -->
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </button>
     </nav>
+
+    <!-- Mobile Menu Overlay -->
+    <div class="mobile-menu" id="mobileMenu">
+        <a href="#getting-started" onclick="toggleMobileMenu()">Getting Started</a>
+        <a href="#sdk-methods" onclick="toggleMobileMenu()">SDK Methods</a>
+        <a href="#api-reference" onclick="toggleMobileMenu()">API Reference</a>
+        <a href="#examples" onclick="toggleMobileMenu()">Examples</a>
+    </div>
 
     <div class="container">
         <!-- Hero Section -->
