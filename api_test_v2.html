@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyOwnDB v2 SDK Test</title>
+    <style>
+        body { background: #0a0a0a; color: #fff; font-family: monospace; padding: 20px; }
+        .success { color: #3ECF8E; }
+        .error { color: #ef4444; }
+        .box { background: #1a1a1a; padding: 15px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #333; }
+    </style>
+</head>
+<body>
+    <h1>🧪 SDK v2 Automated Tests</h1>
+    <div class="box">
+        <label>API Key:</label>
+        <input type="text" id="apiKey" value="sk_652c8a4ceba8fa01440feec89095e2f72169770cfc2a7268883a2c487cf626f1" style="width: 100%; margin-top: 5px; background: #000; color: #fff; border: 1px solid #333; padding: 5px;">
+        <button onclick="runTests()" style="margin-top: 10px; padding: 8px 16px; background: #3ECF8E; border: none; cursor: pointer;">▶ Run Tests</button>
+    </div>
+    <div id="results"></div>
+
+    <script src="static/js/myowndb.js"></script>
+    <script>
+        // Test Runner
+        async function runTests() {
+            const apiKey = document.getElementById('apiKey').value;
+            const db = new MyOwnDB(apiKey);
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = 'Running tests...<br>';
+            
+            const table = `test_sdk_${Date.now()}`;
+            
+            const tests = [
+                {
+                    name: '1. Create Table',
+                    run: async () => {
+                        const res = await db.createTable(table, [
+                            { name: 'name', type: 'TEXT' },
+                            { name: 'age', type: 'INTEGER' },
+                            { name: 'city', type: 'TEXT' }
+                        ]);
+                        if (res.error) throw new Error(res.error);
+                        return `Created table ${table}`;
+                    }
+                },
+                {
+                    name: '2. Add Column',
+                    run: async () => {
+                        const res = await db.from(table).addColumn({ name: 'status', type: 'TEXT' });
+                        if (res.error) throw new Error(res.error);
+                        return 'Added column "status"';
+                    }
+                },
+                {
+                    name: '3. Insert Data',
+                    run: async () => {
+                        const users = [
+                            { name: 'Alice', age: 25, city: 'New York', status: 'active' },
+                            { name: 'Bob', age: 30, city: 'London', status: 'inactive' },
+                            { name: 'Charlie', age: 35, city: 'New York', status: 'active' },
+                            { name: 'Dave', age: 20, city: 'Paris', status: 'active' }
+                        ];
+                        for (let u of users) {
+                            await db.from(table).insert(u);
+                        }
+                        return `Inserted ${users.length} rows`;
+                    }
+                },
+                {
+                    name: '4. Select All',
+                    run: async () => {
+                        const res = await db.from(table).select();
+                        if (res.data.length !== 4) throw new Error(`Expected 4 rows, got ${res.data.length}`);
+                        return `Got ${res.data.length} rows`;
+                    }
+                },
+                {
+                    name: '5. Filter (WHERE age > 28)',
+                    run: async () => {
+                        const res = await db.from(table).where('age', '>', 28).select();
+                        if (res.data.length !== 2) throw new Error(`Expected Bob(30) and Charlie(35), got ${res.data.length}`);
+                        return 'Correctly filtered > 28';
+                    }
+                },
+                {
+                    name: '6. Chained Filter (status=active AND city=New York)',
+                    run: async () => {
+                        const res = await db.from(table)
+                            .where('status', 'active')
+                            .where('city', 'New York')
+                            .select();
+                        if (res.data.length !== 2) throw new Error(`Expected Alice and Charlie, got ${res.data.length}`);
+                        return 'Correctly filtered chained AND';
+                    }
+                },
+                {
+                    name: '7. Search (LIKE/ILIKE)',
+                    run: async () => {
+                        const res = await db.from(table).search('name', 'ali').execute(); // 'ali' matches Alice
+                        // Depending on backend impl, might match just Alice
+                        if (res.data.length === 0) throw new Error('Search failed to find Alice');
+                        return `Found ${res.data.length} matches for "ali"`;
+                    }
+                },
+                {
+                    name: '8. Sorting (OrderBy age DESC)',
+                    run: async () => {
+                        const res = await db.from(table).orderBy('age', 'desc').select();
+                        if (res.data[0].age !== 35) throw new Error(`Expected top age 35, got ${res.data[0].age}`);
+                        return 'Sort worked (Charlie is first)';
+                    }
+                },
+                {
+                    name: '9. Pagination (Limit 2 Offset 1)',
+                    run: async () => {
+                        // Order by age ASC: Dave(20), Alice(25), Bob(30), Charlie(35)
+                        // Limit 2 Offset 1 -> Alice(25), Bob(30)
+                        const res = await db.from(table).orderBy('age', 'asc').limit(2).offset(1).select();
+                        if (res.data.length !== 2) throw new Error(`Expected 2 rows, got ${res.data.length}`);
+                        if (res.data[0].name !== 'Alice') throw new Error(`Expected Alice first, got ${res.data[0].name}`);
+                        return 'Pagination Correct';
+                    }
+                }
+            ];
+
+            // Execute
+            for (let test of tests) {
+                try {
+                    const msg = await test.run();
+                    resultsDiv.innerHTML += `<div class="success">✅ ${test.name}: ${msg}</div>`;
+                } catch (e) {
+                    console.error(e);
+                    resultsDiv.innerHTML += `<div class="error">❌ ${test.name}: ${e.message}</div>`;
+                }
+            }
+            resultsDiv.innerHTML += '<br>Done.';
+        }
+    </script>
+</body>
+</html>

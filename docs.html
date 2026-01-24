@@ -597,7 +597,7 @@
                 <div class="method-header">
                     <span class="method-name">db.from(tableName)</span>
                 </div>
-                <p class="method-desc">Select a table to perform operations on. This method is chainable.</p>
+                <p class="method-desc">Select a table to perform operations on. Returns a QueryBuilder for chaining.</p>
                 <table class="params-table">
                     <tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
                     <tr><td>tableName</td><td>string</td><td>Name of the table to select</td></tr>
@@ -637,11 +637,36 @@
                     <span class="method-name">db.from(table).select(limit?)</span>
                     <span class="method-badge get">GET</span>
                 </div>
-                <p class="method-desc">Fetch all rows from a table. Optionally limit results.</p>
-                <table class="params-table">
-                    <tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
-                    <tr><td>limit</td><td>number (optional)</td><td>Maximum number of rows to return</td></tr>
-                </table>
+                <p class="method-desc">Fetch all rows matching the query. Returns array of rows and metadata.</p>
+                
+                <h4 style="color: #fff; margin: 16px 0 8px;">Query Builder Methods</h4>
+                <div class="code-block" style="background: rgba(0,0,0,0.3);">
+                    <div class="code-header" style="border: none;">
+                        <span class="code-lang">Chaining Examples</span>
+                    </div>
+                    <pre><code><span class="comment">// 1. Filtering (.where)</span>
+<span class="comment">// Supports: =, !=, &gt;, &lt;, &gt;=, &lt;=, LIKE, ILIKE</span>
+<span class="variable">db</span>.<span class="function">from</span>(<span class="string">'users'</span>)
+  .<span class="function">where</span>(<span class="string">'age'</span>, <span class="string">'&gt;'</span>, <span class="number">18</span>)
+  .<span class="function">where</span>(<span class="string">'status'</span>, <span class="string">'active'</span>)
+  .<span class="function">select</span>();
+
+<span class="comment">// 2. Sorting (.orderBy)</span>
+<span class="variable">db</span>.<span class="function">from</span>(<span class="string">'users'</span>)
+  .<span class="function">orderBy</span>(<span class="string">'created_at'</span>, <span class="string">'desc'</span>)
+  .<span class="function">select</span>();
+
+<span class="comment">// 3. Pagination (.limit, .offset)</span>
+<span class="variable">db</span>.<span class="function">from</span>(<span class="string">'users'</span>)
+  .<span class="function">limit</span>(<span class="number">10</span>)
+  .<span class="function">offset</span>(<span class="number">20</span>)
+  .<span class="function">select</span>();
+
+<span class="comment">// 4. Search (.search)</span>
+<span class="variable">db</span>.<span class="function">from</span>(<span class="string">'articles'</span>)
+  .<span class="function">search</span>(<span class="string">'title'</span>, <span class="string">'My Blog Post'</span>)
+  .<span class="function">select</span>();</code></pre>
+                </div>
                 <div class="code-block">
                     <div class="code-header">
                         <span class="code-lang">JavaScript</span>
@@ -734,6 +759,38 @@
 <span class="keyword">if</span> (!<span class="variable">error</span>) {
     <span class="variable">console</span>.<span class="function">log</span>(<span class="string">'Deleted!'</span>);
 }</code></pre>
+                </div>
+            </div>
+
+            <!-- Schema Management -->
+            <h3 style="color: #fff; margin: 32px 0 16px;">Schema Management</h3>
+
+            <!-- createTable() -->
+            <div class="method-card">
+                <div class="method-header">
+                    <span class="method-name">db.createTable(name, schema)</span>
+                    <span class="method-badge post">POST</span>
+                </div>
+                <p class="method-desc">Create a new table programmatically.</p>
+                <div class="code-block">
+                    <pre><code><span class="keyword">await</span> <span class="variable">db</span>.<span class="function">createTable</span>(<span class="string">'users'</span>, [
+    { <span class="property">name</span>: <span class="string">'id'</span>, <span class="property">type</span>: <span class="string">'INTEGER'</span>, <span class="property">pk</span>: <span class="keyword">true</span> },
+    { <span class="property">name</span>: <span class="string">'username'</span>, <span class="property">type</span>: <span class="string">'TEXT'</span> },
+    { <span class="property">name</span>: <span class="string">'email'</span>, <span class="property">type</span>: <span class="string">'TEXT'</span> }
+]);</code></pre>
+                </div>
+            </div>
+
+            <!-- addColumn() -->
+            <div class="method-card">
+                <div class="method-header">
+                    <span class="method-name">db.from(table).addColumn(def)</span>
+                    <span class="method-badge post">POST</span>
+                </div>
+                <p class="method-desc">Add a new column to an existing table.</p>
+                <div class="code-block">
+                    <pre><code><span class="keyword">await</span> <span class="variable">db</span>.<span class="function">from</span>(<span class="string">'users'</span>)
+  .<span class="function">addColumn</span>({ <span class="property">name</span>: <span class="string">'age'</span>, <span class="property">type</span>: <span class="string">'INTEGER'</span> });</code></pre>
                 </div>
             </div>
         </section>

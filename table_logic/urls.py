@@ -15,6 +15,7 @@ from .api_views import (
     PublicTableDetailView,
     PublicTableRowsView,
     PublicTableRowDetailView,
+    PublicTableColumnsView,
     APIKeyListCreateView,
     APIKeyDetailView,
 )
@@ -50,6 +51,7 @@ urlpatterns = [
     path('v1/tables/<str:table_name>/', PublicTableDetailView.as_view(), name='public_table_detail'),
     path('v1/tables/<str:table_name>/rows/', PublicTableRowsView.as_view(), name='public_table_rows'),
     path('v1/tables/<str:table_name>/rows/<int:row_id>/', PublicTableRowDetailView.as_view(), name='public_table_row'),
+    path('v1/tables/<str:table_name>/columns/', PublicTableColumnsView.as_view(), name='public_table_columns'),
 ]
 
 

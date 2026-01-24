@@ -83,6 +83,68 @@ class PublicTableListView(APIView):
             'count': len(result),
         })
 
+    def post(self, request):
+        """Create a new table"""
+        name = request.data.get('name')
+        columns = request.data.get('columns', [])
+        
+        if not name or not columns:
+            return Response({'success': False, 'error': 'Name and columns are required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Copied logic from TableListCreateView.post
+        if UserTable.objects.filter(user=request.user, table_name=name).exists():
+            return Response({'success': False, 'error': f'Table "{name}" already exists'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Generate unique real table name
+        real_name = f"u{request.user.id}_{name}"
+        
+        # Build CREATE TABLE SQL
+        column_defs = []
+        for col in columns:
+            col_name = col.get('name', '').strip()
+            col_type = col.get('type', 'TEXT').upper()
+            
+            # Basic sanitization
+            if not col_name.isidentifier(): 
+                 return Response({'success': False, 'error': f'Invalid column name: {col_name}'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Determine mapping
+            if connection.vendor != 'sqlite':
+                if col_type == 'BLOB': col_type = 'BYTEA'
+                elif col_type == 'DATETIME': col_type = 'TIMESTAMP'
+
+            # Primary Key?
+            # We don't support complex PK config via this simple API for now, assume standard config
+            # Or trust the input since it's authenticated
+            col_def = f'"{col_name}" {col_type}'
+            column_defs.append(col_def)
+        
+        # Fallback if no columns? SQLite needs at least one.
+        if not column_defs:
+             return Response({'success': False, 'error': 'At least one column required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        sql = f'CREATE TABLE "{real_name}" ({", ".join(column_defs)})'
+        
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(sql)
+            
+            UserTable.objects.create(
+                user=request.user,
+                table_name=name,
+                real_name=real_name,
+                schema=columns
+            )
+            
+            log_api_activity(request.user, 'CREATE_TABLE', name, f'Created table "{name}" via API', request=request)
+            
+            return Response({
+                'success': True,
+                'message': f'Table "{name}" created successfully'
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class PublicTableDetailView(APIView):
     """
@@ -156,16 +218,75 @@ class PublicTableRowsView(APIView):
             }, status=status.HTTP_404_NOT_FOUND)
         
         # Parse query params
-        page = int(request.query_params.get('page', 1))
-        limit = min(int(request.query_params.get('limit', 25)), 100)  # Max 100
-        sort = request.query_params.get('sort', '')
-        order = request.query_params.get('order', 'asc').lower()
-        offset = (page - 1) * limit
-        
         try:
+            page = int(request.query_params.get('page', 1))
+            limit = min(int(request.query_params.get('limit', 25)), 100)
+            offset = int(request.query_params.get('offset', (page - 1) * limit))
+            sort = request.query_params.get('sort', '')
+            order = request.query_params.get('order', 'asc').lower()
+            if order not in ['asc', 'desc']:
+                order = 'asc'
+            search = request.query_params.get('search', '').strip()
+            
             with connection.cursor() as cursor:
                 schema_columns = [col.get('name') for col in user_table.schema]
                 
+                # Build WHERE clause
+                where_clauses = []
+                params = []
+                
+                # 1. Search
+                if search:
+                    search_conditions = []
+                    # Search all columns that look like text? Or just convert everything to text
+                    for col in schema_columns:
+                        search_conditions.append(f'CAST("{col}" AS TEXT) LIKE %s')
+                        params.append(f'%{search}%')
+                    if search_conditions:
+                        where_clauses.append(f"({' OR '.join(search_conditions)})")
+
+                # 2. Filters (col=val, col__gt=val, etc)
+                # Operators map: suffix -> sql op
+                operators = {
+                    '': '=',
+                    'gt': '>',
+                    'lt': '<',
+                    'gte': '>=',
+                    'lte': '<=',
+                    'ne': '!=',
+                    'contains': 'LIKE',
+                    'icontains': 'ILIKE',
+                }
+                
+                for key, value in request.query_params.items():
+                    # Skip reserved keys
+                    if key in ['page', 'limit', 'offset', 'sort', 'order', 'search']:
+                        continue
+                        
+                    # Check for operator suffix
+                    parts = key.split('__')
+                    col_name = parts[0]
+                    op_suffix = parts[1] if len(parts) > 1 else ''
+                    
+                    if col_name in schema_columns and op_suffix in operators:
+                        operator = operators[op_suffix]
+                        
+                        # Handle LIKE wildcards if not present
+                        if 'contains' in op_suffix and '%' not in value:
+                            value = f'%{value}%'
+                            
+                        # SQLite doesn't support ILIKE standardly (though some builds do)
+                        # Fallback for SQLite to Upper() = Upper() if needed, but LIKE is case insensitive in SQLite default for ASCII
+                        if connection.vendor == 'sqlite' and operator == 'ILIKE':
+                            operator = 'LIKE' 
+
+                        where_clauses.append(f'"{col_name}" {operator} %s')
+                        params.append(value)
+
+                where_sql = ""
+                if where_clauses:
+                    where_sql = "WHERE " + " AND ".join(where_clauses)
+
                 # Build ORDER BY clause
                 order_clause = ""
                 if sort and sort in schema_columns:
@@ -173,12 +294,14 @@ class PublicTableRowsView(APIView):
                     order_clause = f'ORDER BY "{sort}" {order_direction}'
                 
                 # Get total count
-                cursor.execute(f'SELECT COUNT(*) FROM "{user_table.real_name}"')
+                count_sql = f'SELECT COUNT(*) FROM "{user_table.real_name}" {where_sql}'
+                cursor.execute(count_sql, params)
                 total = cursor.fetchone()[0]
                 
                 # Get rows
-                rows_sql = f'SELECT *, rowid FROM "{user_table.real_name}" {order_clause} LIMIT {limit} OFFSET {offset}'
-                cursor.execute(rows_sql)
+                # SQLite Needs rowid selected explicitly if we want to use it for updates later
+                rows_sql = f'SELECT *, rowid FROM "{user_table.real_name}" {where_sql} {order_clause} LIMIT {limit} OFFSET {offset}'
+                cursor.execute(rows_sql, params)
                 columns = [desc[0] for desc in cursor.description] if cursor.description else []
                 rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
             
@@ -399,6 +522,56 @@ class PublicTableRowDetailView(APIView):
                 'success': False,
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class PublicTableColumnsView(APIView):
+    """
+    POST: Add a column to the table
+    """
+    authentication_classes = [APIKeyAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, table_name):
+        try:
+            user_table = UserTable.objects.get(user=request.user, table_name=table_name)
+        except UserTable.DoesNotExist:
+            return Response({'success': False, 'error': 'Table not found'}, status=status.HTTP_404_NOT_FOUND)
+            
+        col_name = request.data.get('name')
+        col_type = request.data.get('type', 'TEXT').upper()
+        
+        if not col_name:
+            return Response({'success': False, 'error': 'Column name is required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # Validate column name 
+        if not col_name.isidentifier():
+             return Response({'success': False, 'error': 'Invalid column name'}, status=status.HTTP_400_BAD_REQUEST)
+             
+        # Check if already exists
+        existing_cols = [c['name'] for c in user_table.schema]
+        if col_name in existing_cols:
+             return Response({'success': False, 'error': 'Column already exists'}, status=status.HTTP_400_BAD_REQUEST)
+             
+        real_type = col_type
+        if connection.vendor != 'sqlite':
+            if real_type == 'BLOB': real_type = 'BYTEA'
+            elif real_type == 'DATETIME': real_type = 'TIMESTAMP'
+
+        sql = f'ALTER TABLE "{user_table.real_name}" ADD COLUMN "{col_name}" {real_type}'
+        
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(sql)
+                
+            # Update Schema
+            user_table.schema.append({'name': col_name, 'type': col_type})
+            user_table.save(update_fields=['schema'])
+            
+            log_api_activity(request.user, 'ADD_COLUMN', table_name, f'Added column "{col_name}" to "{table_name}"', request=request)
+            
+            return Response({'success': True, 'message': f'Column "{col_name}" added'})
+        except Exception as e:
+             return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # =============================================
