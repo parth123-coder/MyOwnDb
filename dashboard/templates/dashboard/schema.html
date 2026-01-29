@@ -129,7 +129,7 @@
 </div>
 
 <!-- Rename Column Modal -->
-<div class="modal-overlay" id="renameModal" style="display: none;">
+<div class="modal-overlay" id="renameModal">
     <div class="modal">
         <div class="modal-header">
             <h3>Rename Column</h3>
@@ -154,7 +154,7 @@
 </div>
 
 <!-- Add Column Modal -->
-<div class="modal-overlay" id="addColumnModal" style="display: none;">
+<div class="modal-overlay" id="addColumnModal">
     <div class="modal">
         <div class="modal-header">
             <h3>Add New Column</h3>
@@ -183,7 +183,7 @@
 </div>
 
 <!-- Delete Confirm Modal -->
-<div class="modal-overlay" id="deleteModal" style="display: none;">
+<div class="modal-overlay" id="deleteModal">
     <div class="modal">
         <div class="modal-header">
             <h3>Delete Column</h3>
@@ -306,11 +306,11 @@
     function openAddColumnModal() {
         document.getElementById('newColumnName').value = '';
         document.getElementById('newColumnType').value = 'TEXT';
-        document.getElementById('addColumnModal').style.display = 'flex';
+        document.getElementById('addColumnModal').classList.add('active');
     }
 
     function closeAddColumnModal() {
-        document.getElementById('addColumnModal').style.display = 'none';
+        document.getElementById('addColumnModal').classList.remove('active');
     }
 
     async function addColumn() {
@@ -337,12 +337,12 @@
         document.getElementById('renameOldName').value = colName;
         document.getElementById('renameCurrentDisplay').value = colName;
         document.getElementById('renameNewName').value = '';
-        document.getElementById('renameModal').style.display = 'flex';
+        document.getElementById('renameModal').classList.add('active');
         document.getElementById('renameNewName').focus();
     }
 
     function closeRenameModal() {
-        document.getElementById('renameModal').style.display = 'none';
+        document.getElementById('renameModal').classList.remove('active');
     }
 
     async function renameColumn() {
@@ -370,11 +370,11 @@
     function openDeleteModal(colName) {
         columnToDelete = colName;
         document.getElementById('deleteColumnName').textContent = colName;
-        document.getElementById('deleteModal').style.display = 'flex';
+        document.getElementById('deleteModal').classList.add('active');
     }
 
     function closeDeleteModal() {
-        document.getElementById('deleteModal').style.display = 'none';
+        document.getElementById('deleteModal').classList.remove('active');
         columnToDelete = null;
     }
 
