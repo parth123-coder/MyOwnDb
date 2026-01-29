@@ -127,6 +127,31 @@ const API = {
         const queryString = new URLSearchParams(params).toString();
         return this.request(`/activity/?${queryString}`);
     },
+
+    // Generic POST request
+    async post(endpoint, data) {
+        return this.request(endpoint, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    },
+
+    // Generic PUT request
+    async put(endpoint, data) {
+        return this.request(endpoint, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    },
+
+    // Generic DELETE request with body
+    async delete(endpoint, data = null) {
+        const options = { method: 'DELETE' };
+        if (data) {
+            options.body = JSON.stringify(data);
+        }
+        return this.request(endpoint, options);
+    },
 };
 
 // =============================================

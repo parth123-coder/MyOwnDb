@@ -15,9 +15,16 @@
 <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
     <div>
         <h1 class="page-title">{{ table_name }} - Schema</h1>
-        <p class="page-description">View table structure and column definitions</p>
+        <p class="page-description">View and edit table structure</p>
     </div>
     <div style="display: flex; gap: 8px;">
+        <button class="btn btn-primary" onclick="openAddColumnModal()">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Add Column
+        </button>
         <a href="{% url 'dashboard:table' table_name %}" class="btn btn-secondary">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="19" y1="12" x2="5" y2="12"></line>
@@ -55,12 +62,13 @@
                     <th>Type</th>
                     <th>Constraints</th>
                     <th>Default</th>
+                    <th style="width: 100px;">Actions</th>
                 </tr>
             </thead>
             <tbody id="schemaBody">
                 <!-- Schema loaded dynamically -->
                 <tr>
-                    <td colspan="5">
+                    <td colspan="6">
                         <div style="display: flex; gap: 16px; padding: 8px 0;">
                             <div class="skeleton" style="width: 30px; height: 18px;"></div>
                             <div class="skeleton" style="width: 150px; height: 18px;"></div>
@@ -119,15 +127,92 @@
             style="background: var(--bg-tertiary); padding: 16px; border-radius: var(--radius-md); overflow-x: auto; font-family: var(--font-mono); font-size: 13px; line-height: 1.6; color: var(--text-primary);">Loading...</pre>
     </div>
 </div>
+
+<!-- Rename Column Modal -->
+<div class="modal-overlay" id="renameModal" style="display: none;">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Rename Column</h3>
+            <button class="modal-close" onclick="closeRenameModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="renameOldName">
+            <div class="form-group">
+                <label class="form-label">Current Name</label>
+                <input type="text" class="form-input" id="renameCurrentDisplay" disabled>
+            </div>
+            <div class="form-group">
+                <label class="form-label">New Name</label>
+                <input type="text" class="form-input" id="renameNewName" placeholder="Enter new column name">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeRenameModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="renameColumn()">Rename</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Column Modal -->
+<div class="modal-overlay" id="addColumnModal" style="display: none;">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Add New Column</h3>
+            <button class="modal-close" onclick="closeAddColumnModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Column Name</label>
+                <input type="text" class="form-input" id="newColumnName" placeholder="column_name">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Type</label>
+                <select class="form-input" id="newColumnType">
+                    <option value="TEXT">TEXT</option>
+                    <option value="INTEGER">INTEGER</option>
+                    <option value="REAL">REAL</option>
+                    <option value="BLOB">BLOB</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeAddColumnModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="addColumn()">Add Column</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal-overlay" id="deleteModal" style="display: none;">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Delete Column</h3>
+            <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Are you sure you want to delete the column <strong id="deleteColumnName"></strong>?</p>
+            <p style="color: var(--danger); font-size: 13px; margin-top: 8px;">⚠️ This will permanently delete all data in this column.</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+            <button class="btn btn-danger" onclick="deleteColumn()">Delete Column</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
     let schemaData = null;
+    const tableName = '{{ table_name }}';
 
     document.addEventListener('DOMContentLoaded', async () => {
+        await loadSchema();
+    });
+
+    async function loadSchema() {
         try {
-            const schema = await API.getTableSchema('{{ table_name }}');
+            const schema = await API.getTableSchema(tableName);
             schemaData = schema;
             renderSchema(schema);
             renderDDL(schema);
@@ -135,7 +220,7 @@
             console.error('Failed to load schema:', error);
             UI.showToast('Failed to load schema', 'error');
         }
-    });
+    }
 
     function renderSchema(schema) {
         const tbody = document.getElementById('schemaBody');
@@ -150,7 +235,7 @@
         if (columns.length === 0) {
             tbody.innerHTML = `
             <tr>
-                <td colspan="5" class="text-center text-muted" style="padding: 40px;">
+                <td colspan="6" class="text-center text-muted" style="padding: 40px;">
                     No columns found
                 </td>
             </tr>
@@ -164,6 +249,8 @@
             if (col.notnull) constraints.push('<span class="schema-badge not-null">NOT NULL</span>');
             if (col.unique) constraints.push('<span class="schema-badge unique">UNIQUE</span>');
 
+            const isPK = col.pk;
+
             return `
             <tr>
                 <td class="text-muted">${index + 1}</td>
@@ -173,6 +260,24 @@
                 <td class="font-mono text-muted" style="font-size: 12px;">
                     ${col.dflt_value !== null ? UI.escapeHtml(String(col.dflt_value)) : '<span class="cell-null">NULL</span>'}
                 </td>
+                <td>
+                    <div style="display: flex; gap: 4px;">
+                        <button class="btn btn-sm btn-ghost" onclick="openRenameModal('${UI.escapeHtml(col.name)}')" title="Rename">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                        </button>
+                        ${!isPK ? `
+                        <button class="btn btn-sm btn-ghost" onclick="openDeleteModal('${UI.escapeHtml(col.name)}')" title="Delete" style="color: var(--danger);">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                        </button>
+                        ` : ''}
+                    </div>
+                </td>
             </tr>
         `;
         }).join('');
@@ -181,7 +286,7 @@
     function renderDDL(schema) {
         const columns = schema.columns || [];
 
-        let ddl = `CREATE TABLE "${schema.table_name || '{{ table_name }}'}" (\n`;
+        let ddl = `CREATE TABLE "${schema.table_name || tableName}" (\n`;
 
         ddl += columns.map(col => {
             let line = `    "${col.name}" ${col.type || 'TEXT'}`;
@@ -195,6 +300,95 @@
         ddl += '\n);';
 
         document.getElementById('ddlStatement').textContent = ddl;
+    }
+
+    // Add Column
+    function openAddColumnModal() {
+        document.getElementById('newColumnName').value = '';
+        document.getElementById('newColumnType').value = 'TEXT';
+        document.getElementById('addColumnModal').style.display = 'flex';
+    }
+
+    function closeAddColumnModal() {
+        document.getElementById('addColumnModal').style.display = 'none';
+    }
+
+    async function addColumn() {
+        const name = document.getElementById('newColumnName').value.trim();
+        const type = document.getElementById('newColumnType').value;
+
+        if (!name) {
+            UI.showToast('Column name is required', 'error');
+            return;
+        }
+
+        try {
+            await API.post(`/tables/${tableName}/columns/`, { name, type });
+            UI.showToast(`Column "${name}" added`);
+            closeAddColumnModal();
+            await loadSchema();
+        } catch (error) {
+            UI.showToast(error.message || 'Failed to add column', 'error');
+        }
+    }
+
+    // Rename Column
+    function openRenameModal(colName) {
+        document.getElementById('renameOldName').value = colName;
+        document.getElementById('renameCurrentDisplay').value = colName;
+        document.getElementById('renameNewName').value = '';
+        document.getElementById('renameModal').style.display = 'flex';
+        document.getElementById('renameNewName').focus();
+    }
+
+    function closeRenameModal() {
+        document.getElementById('renameModal').style.display = 'none';
+    }
+
+    async function renameColumn() {
+        const oldName = document.getElementById('renameOldName').value;
+        const newName = document.getElementById('renameNewName').value.trim();
+
+        if (!newName) {
+            UI.showToast('New column name is required', 'error');
+            return;
+        }
+
+        try {
+            await API.put(`/tables/${tableName}/columns/`, { old_name: oldName, new_name: newName });
+            UI.showToast(`Column renamed to "${newName}"`);
+            closeRenameModal();
+            await loadSchema();
+        } catch (error) {
+            UI.showToast(error.message || 'Failed to rename column', 'error');
+        }
+    }
+
+    // Delete Column
+    let columnToDelete = null;
+
+    function openDeleteModal(colName) {
+        columnToDelete = colName;
+        document.getElementById('deleteColumnName').textContent = colName;
+        document.getElementById('deleteModal').style.display = 'flex';
+    }
+
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').style.display = 'none';
+        columnToDelete = null;
+    }
+
+    async function deleteColumn() {
+        if (!columnToDelete) return;
+
+        try {
+            await API.delete(`/tables/${tableName}/columns/`, { name: columnToDelete });
+            UI.showToast(`Column "${columnToDelete}" deleted`);
+            closeDeleteModal();
+            await loadSchema();
+        } catch (error) {
+            UI.showToast(error.message || 'Failed to delete column', 'error');
+        }
     }
 
     function copyDDL() {
