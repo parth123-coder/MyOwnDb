@@ -511,18 +511,49 @@
         <section class="section" id="getting-started">
             <h2 class="section-title">Getting Started</h2>
             
+            <!-- AI Reference Notice -->
+            <div class="card" style="border-color: var(--border-accent); margin-bottom: 24px;">
+                <h3 style="color: var(--accent);">🤖 For AI Assistants</h3>
+                <p>Building with an AI coding assistant? See <a href="SDK_REFERENCE.md" style="color: var(--accent);">SDK_REFERENCE.md</a> for a structured, AI-parseable API reference with endpoint tables and copy-paste code examples.</p>
+            </div>
+
             <div class="steps">
                 <div class="step">
                     <div class="step-number"></div>
                     <div class="step-content">
                         <h4>Include the SDK</h4>
-                        <p>Add the SDK script to your HTML file:</p>
+                        <p>Choose one of these installation methods:</p>
+                        
+                        <!-- CDN Option -->
                         <div class="code-block">
                             <div class="code-header">
-                                <span class="code-lang">HTML</span>
+                                <span class="code-lang">CDN (Recommended)</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                            </div>
+                            <pre><code><span class="comment">&lt;!-- Production (minified, ~3KB) --&gt;</span>
+<span class="keyword">&lt;script</span> <span class="property">src</span>=<span class="string">"https://cdn.jsdelivr.net/gh/parth123-coder/MyOwnDb@main/static/js/myowndb.min.js"</span><span class="keyword">&gt;&lt;/script&gt;</span>
+
+<span class="comment">&lt;!-- Development (with comments) --&gt;</span>
+<span class="keyword">&lt;script</span> <span class="property">src</span>=<span class="string">"https://cdn.jsdelivr.net/gh/parth123-coder/MyOwnDb@main/static/js/myowndb.js"</span><span class="keyword">&gt;&lt;/script&gt;</span></code></pre>
+                        </div>
+
+                        <!-- Local Option -->
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span class="code-lang">Local File</span>
                                 <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
                             </div>
                             <pre><code><span class="keyword">&lt;script</span> <span class="property">src</span>=<span class="string">"/static/js/myowndb.js"</span><span class="keyword">&gt;&lt;/script&gt;</span></code></pre>
+                        </div>
+
+                        <!-- NPM Option -->
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span class="code-lang">ES Module Import</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                            </div>
+                            <pre><code><span class="comment">// In your JavaScript file</span>
+<span class="keyword">import</span> <span class="variable">MyOwnDB</span> <span class="keyword">from</span> <span class="string">'./myowndb.js'</span>;</code></pre>
                         </div>
                     </div>
                 </div>
