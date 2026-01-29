@@ -5,6 +5,7 @@ from .views import (
     TableSchemaView,
     TableRowsView,
     TableRowDetailView,
+    TableColumnsView,
     StatsView,
     ActivityView,
     TableExportView,
@@ -31,6 +32,7 @@ urlpatterns = [
     path('tables/<str:table_name>/schema/', TableSchemaView.as_view(), name='api_table_schema'),
     path('tables/<str:table_name>/rows/', TableRowsView.as_view(), name='api_table_rows'),
     path('tables/<str:table_name>/rows/<str:row_id>/', TableRowDetailView.as_view(), name='api_table_row'),
+    path('tables/<str:table_name>/columns/', TableColumnsView.as_view(), name='api_table_columns'),
     path('tables/<str:table_name>/export/', TableExportView.as_view(), name='api_table_export'),
     path('tables/<str:table_name>/import/', TableImportView.as_view(), name='api_table_import'),
     

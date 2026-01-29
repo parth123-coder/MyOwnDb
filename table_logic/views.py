@@ -835,3 +835,179 @@ class TableImportView(APIView):
             return Response({
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class TableColumnsView(APIView):
+    """
+    POST: Add a new column
+    PUT: Rename a column
+    DELETE: Delete a column
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, table_name):
+        """Add a new column to the table"""
+        try:
+            user_table = UserTable.objects.get(user=request.user, table_name=table_name)
+        except UserTable.DoesNotExist:
+            return Response({
+                'error': 'Table not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        col_name = request.data.get('name', '').strip()
+        col_type = request.data.get('type', 'TEXT').upper()
+        
+        if not col_name:
+            return Response({
+                'error': 'Column name is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Map types for PostgreSQL
+        if connection.vendor != 'sqlite':
+            if col_type == 'BLOB':
+                col_type = 'BYTEA'
+            elif col_type == 'DATETIME':
+                col_type = 'TIMESTAMP'
+        
+        try:
+            with connection.cursor() as cursor:
+                sql = f'ALTER TABLE "{user_table.real_name}" ADD COLUMN "{col_name}" {col_type}'
+                cursor.execute(sql)
+            
+            # Update stored schema
+            schema = user_table.schema or []
+            schema.append({
+                'name': col_name,
+                'type': col_type,
+                'pk': False,
+                'notnull': False,
+                'unique': False,
+                'dflt_value': None
+            })
+            user_table.schema = schema
+            user_table.save()
+            
+            log_activity(
+                user=request.user,
+                action='ADD_COLUMN',
+                table_name=table_name,
+                description=f'Added column "{col_name}" ({col_type}) to "{table_name}"',
+                metadata={'column': col_name, 'type': col_type},
+                request=request
+            )
+            
+            return Response({
+                'success': True,
+                'message': f'Column "{col_name}" added'
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def put(self, request, table_name):
+        """Rename a column"""
+        try:
+            user_table = UserTable.objects.get(user=request.user, table_name=table_name)
+        except UserTable.DoesNotExist:
+            return Response({
+                'error': 'Table not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        old_name = request.data.get('old_name', '').strip()
+        new_name = request.data.get('new_name', '').strip()
+        
+        if not old_name or not new_name:
+            return Response({
+                'error': 'Both old_name and new_name are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if old_name == new_name:
+            return Response({
+                'error': 'New name must be different from old name'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            with connection.cursor() as cursor:
+                sql = f'ALTER TABLE "{user_table.real_name}" RENAME COLUMN "{old_name}" TO "{new_name}"'
+                cursor.execute(sql)
+            
+            # Update stored schema
+            schema = user_table.schema or []
+            for col in schema:
+                if col.get('name') == old_name:
+                    col['name'] = new_name
+                    break
+            user_table.schema = schema
+            user_table.save()
+            
+            log_activity(
+                user=request.user,
+                action='RENAME_COLUMN',
+                table_name=table_name,
+                description=f'Renamed column "{old_name}" to "{new_name}" in "{table_name}"',
+                metadata={'old_name': old_name, 'new_name': new_name},
+                request=request
+            )
+            
+            return Response({
+                'success': True,
+                'message': f'Column renamed from "{old_name}" to "{new_name}"'
+            })
+        except Exception as e:
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete(self, request, table_name):
+        """Delete a column"""
+        try:
+            user_table = UserTable.objects.get(user=request.user, table_name=table_name)
+        except UserTable.DoesNotExist:
+            return Response({
+                'error': 'Table not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        col_name = request.data.get('name', '').strip()
+        
+        if not col_name:
+            return Response({
+                'error': 'Column name is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if this is a primary key column
+        for col in user_table.schema or []:
+            if col.get('name') == col_name and col.get('pk'):
+                return Response({
+                    'error': 'Cannot delete primary key column'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            with connection.cursor() as cursor:
+                sql = f'ALTER TABLE "{user_table.real_name}" DROP COLUMN "{col_name}"'
+                cursor.execute(sql)
+            
+            # Update stored schema
+            schema = user_table.schema or []
+            schema = [col for col in schema if col.get('name') != col_name]
+            user_table.schema = schema
+            user_table.save()
+            
+            log_activity(
+                user=request.user,
+                action='DELETE_COLUMN',
+                table_name=table_name,
+                description=f'Deleted column "{col_name}" from "{table_name}"',
+                metadata={'column': col_name},
+                request=request
+            )
+            
+            return Response({
+                'success': True,
+                'message': f'Column "{col_name}" deleted'
+            })
+        except Exception as e:
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
