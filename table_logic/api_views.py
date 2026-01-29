@@ -527,6 +527,8 @@ class PublicTableRowDetailView(APIView):
 class PublicTableColumnsView(APIView):
     """
     POST: Add a column to the table
+    PUT: Rename a column
+    DELETE: Delete a column
     """
     authentication_classes = [APIKeyAuthentication]
     permission_classes = [IsAuthenticated]
@@ -572,6 +574,111 @@ class PublicTableColumnsView(APIView):
             return Response({'success': True, 'message': f'Column "{col_name}" added'})
         except Exception as e:
              return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def put(self, request, table_name):
+        """Rename a column"""
+        try:
+            user_table = UserTable.objects.get(user=request.user, table_name=table_name)
+        except UserTable.DoesNotExist:
+            return Response({'success': False, 'error': 'Table not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        old_name = request.data.get('old_name')
+        new_name = request.data.get('new_name')
+        
+        if not old_name or not new_name:
+            return Response({'success': False, 'error': 'old_name and new_name are required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate new column name
+        if not new_name.isidentifier():
+            return Response({'success': False, 'error': 'Invalid new column name'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if old column exists
+        existing_cols = {c['name']: c for c in user_table.schema}
+        if old_name not in existing_cols:
+            return Response({'success': False, 'error': f'Column "{old_name}" not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check if new name already exists
+        if new_name in existing_cols and new_name != old_name:
+            return Response({'success': False, 'error': f'Column "{new_name}" already exists'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            with connection.cursor() as cursor:
+                if connection.vendor == 'postgresql':
+                    sql = f'ALTER TABLE "{user_table.real_name}" RENAME COLUMN "{old_name}" TO "{new_name}"'
+                    cursor.execute(sql)
+                else:
+                    # SQLite supports RENAME COLUMN since version 3.25.0
+                    sql = f'ALTER TABLE "{user_table.real_name}" RENAME COLUMN "{old_name}" TO "{new_name}"'
+                    cursor.execute(sql)
+            
+            # Update schema
+            for col in user_table.schema:
+                if col['name'] == old_name:
+                    col['name'] = new_name
+                    break
+            user_table.save(update_fields=['schema'])
+            
+            log_api_activity(request.user, 'RENAME_COLUMN', table_name, f'Renamed column "{old_name}" to "{new_name}" in "{table_name}"', request=request)
+            
+            return Response({'success': True, 'message': f'Column renamed from "{old_name}" to "{new_name}"'})
+        except Exception as e:
+            return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete(self, request, table_name):
+        """Delete a column"""
+        try:
+            user_table = UserTable.objects.get(user=request.user, table_name=table_name)
+        except UserTable.DoesNotExist:
+            return Response({'success': False, 'error': 'Table not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        col_name = request.data.get('name')
+        
+        if not col_name:
+            return Response({'success': False, 'error': 'Column name is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if column exists
+        existing_cols = [c['name'] for c in user_table.schema]
+        if col_name not in existing_cols:
+            return Response({'success': False, 'error': f'Column "{col_name}" not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Prevent deleting last column
+        if len(existing_cols) <= 1:
+            return Response({'success': False, 'error': 'Cannot delete the last column'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            with connection.cursor() as cursor:
+                if connection.vendor == 'postgresql':
+                    sql = f'ALTER TABLE "{user_table.real_name}" DROP COLUMN "{col_name}"'
+                    cursor.execute(sql)
+                else:
+                    # SQLite DROP COLUMN supported since 3.35.0
+                    # Try it first, fall back to table recreation if it fails
+                    try:
+                        sql = f'ALTER TABLE "{user_table.real_name}" DROP COLUMN "{col_name}"'
+                        cursor.execute(sql)
+                    except Exception:
+                        # Fallback: recreate table without the column (for older SQLite)
+                        remaining_cols = [c for c in user_table.schema if c['name'] != col_name]
+                        cols_str = ', '.join([f'"{c["name"]}"' for c in remaining_cols])
+                        
+                        # Create temp table, copy data, drop old, rename
+                        temp_name = f"{user_table.real_name}_temp"
+                        col_defs = ', '.join([f'"{c["name"]}" {c.get("type", "TEXT")}' for c in remaining_cols])
+                        
+                        cursor.execute(f'CREATE TABLE "{temp_name}" ({col_defs})')
+                        cursor.execute(f'INSERT INTO "{temp_name}" ({cols_str}) SELECT {cols_str} FROM "{user_table.real_name}"')
+                        cursor.execute(f'DROP TABLE "{user_table.real_name}"')
+                        cursor.execute(f'ALTER TABLE "{temp_name}" RENAME TO "{user_table.real_name}"')
+            
+            # Update schema
+            user_table.schema = [c for c in user_table.schema if c['name'] != col_name]
+            user_table.save(update_fields=['schema'])
+            
+            log_api_activity(request.user, 'DELETE_COLUMN', table_name, f'Deleted column "{col_name}" from "{table_name}"', request=request)
+            
+            return Response({'success': True, 'message': f'Column "{col_name}" deleted'})
+        except Exception as e:
+            return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # =============================================

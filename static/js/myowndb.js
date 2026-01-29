@@ -198,6 +198,20 @@
             });
         }
 
+        async renameColumn(oldName, newName) {
+            return await this.db._request(`/tables/${this.tableName}/columns/`, {
+                method: 'PUT',
+                body: JSON.stringify({ old_name: oldName, new_name: newName })
+            });
+        }
+
+        async deleteColumn(columnName) {
+            return await this.db._request(`/tables/${this.tableName}/columns/`, {
+                method: 'DELETE',
+                body: JSON.stringify({ name: columnName })
+            });
+        }
+
         // Schema Alias
         async schema() {
             return await this.db._request(`/tables/${this.tableName}/`);

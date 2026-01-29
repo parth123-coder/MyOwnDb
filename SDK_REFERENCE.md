@@ -31,6 +31,8 @@ const db = new MyOwnDB('YOUR_API_KEY', 'https://myowndb.onrender.com/api/v1');
 | `db.from(table).update(id, data)` | PUT | `/tables/{table}/rows/{id}/` |
 | `db.from(table).delete(id)` | DELETE | `/tables/{table}/rows/{id}/` |
 | `db.from(table).addColumn(def)` | POST | `/tables/{table}/columns/` |
+| `db.from(table).renameColumn(old, new)` | PUT | `/tables/{table}/columns/` |
+| `db.from(table).deleteColumn(name)` | DELETE | `/tables/{table}/columns/` |
 
 **Authentication Header**: `X-API-Key: YOUR_API_KEY`
 
@@ -129,6 +131,16 @@ const { data, error } = await db.from('tasks').addColumn({
   name: 'description',
   type: 'TEXT'
 });
+```
+
+### Rename Column
+```javascript
+const { data, error } = await db.from('tasks').renameColumn('old_name', 'new_name');
+```
+
+### Delete Column
+```javascript
+const { data, error } = await db.from('tasks').deleteColumn('column_to_remove');
 ```
 
 ---
